@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIC+ English — Headcount Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --paper:#F5F7F9; --surface:#FFFFFF; --surface-2:#FBFCFD;
+  --ink:#0E1A26; --ink-2:#37485C; --muted:#7386A0;
+  --line:#E3E9F0; --line-2:#CCD6E2;
+  --accent:#0F5C6B; --accent-2:#0B4653; --accent-soft:#E7F1F3;
+  --warn:#B8710F; --warn-soft:#FBF1E0;
+  --bad:#A8324A; --bad-soft:#FAECEF;
+  --good:#0B6E5A; --good-soft:#E6F2EF;
+
+  --g-ap:#0B6E5A; --g-a:#18866B; --g-am:#39A07C; --g-bp:#74B075; --g-b:#A3BA66;
+  --g-cp:#D6B349; --g-c:#E29B3E; --g-d:#DE7B3C; --g-e:#CF5B41; --g-g:#A8324A;
+
+  --t-bt:#0B6E5A; --t-ont:#2C6F9B; --t-oft:#C98A1B; --t-fft:#A8324A;
+
+  --r:10px; --r-sm:6px;
+  --sh:0 1px 2px rgba(14,26,38,.04), 0 1px 8px rgba(14,26,38,.03);
+  --sans:'Public Sans',system-ui,-apple-system,Segoe UI,sans-serif;
+  --disp:'Archivo','Public Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:none}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ---------- grade spectrum rail : the signature device ---------- */
+.rail{display:flex;height:4px;width:100%;overflow:hidden}
+.rail i{flex:1;display:block}
+.rail i:nth-child(1){background:var(--g-ap)} .rail i:nth-child(2){background:var(--g-a)}
+.rail i:nth-child(3){background:var(--g-am)} .rail i:nth-child(4){background:var(--g-bp)}
+.rail i:nth-child(5){background:var(--g-b)}  .rail i:nth-child(6){background:var(--g-cp)}
+.rail i:nth-child(7){background:var(--g-c)}  .rail i:nth-child(8){background:var(--g-d)}
+.rail i:nth-child(9){background:var(--g-e)}  .rail i:nth-child(10){background:var(--g-g)}
+
+/* ---------- login ---------- */
+#gate{position:fixed;inset:0;z-index:200;background:var(--paper);display:flex;align-items:center;justify-content:center;padding:24px}
+.gate-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden}
+.gate-body{padding:34px 32px 30px}
+.gate-mark{font-family:var(--disp);font-weight:700;font-size:22px;letter-spacing:-.02em}
+.gate-mark span{color:var(--accent)}
+.gate-sub{color:var(--muted);font-size:12.5px;margin-top:4px;letter-spacing:.04em;text-transform:uppercase}
+.field{margin-top:18px}
+.field label{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6px}
+.field input{width:100%;padding:10px 12px;border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--surface-2)}
+.field input:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px var(--accent-soft)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 16px;border-radius:var(--r-sm);background:var(--accent);color:#fff;font-weight:600;font-size:13.5px;border:1px solid var(--accent)}
+.btn:hover{background:var(--accent-2)}
+.btn.ghost{background:transparent;color:var(--ink-2);border-color:var(--line-2)}
+.btn.ghost:hover{background:var(--surface-2);color:var(--ink)}
+.btn.wide{width:100%;padding:11px}
+.gate-err{margin-top:14px;font-size:13px;color:var(--bad);background:var(--bad-soft);border:1px solid #F0D2D9;padding:8px 11px;border-radius:var(--r-sm);display:none}
+.gate-note{padding:14px 32px;background:var(--surface-2);border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.5}
+
+/* ---------- shell ---------- */
+#app{display:none;min-height:100vh}
+.shell{display:grid;grid-template-columns:222px 1fr;min-height:100vh}
+.side{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.side-head{padding:18px 18px 14px;border-bottom:1px solid var(--line)}
+.brand{font-family:var(--disp);font-weight:700;font-size:16.5px;letter-spacing:-.02em;line-height:1.2}
+.brand span{color:var(--accent)}
+.brand-sub{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+.nav{flex:1;overflow-y:auto;padding:12px 10px}
+.nav-group{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);padding:12px 8px 5px;font-weight:600}
+.nav a{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:var(--r-sm);color:var(--ink-2);text-decoration:none;font-size:13.5px;font-weight:500}
+.nav a:hover{background:var(--surface-2);color:var(--ink)}
+.nav a.on{background:var(--accent-soft);color:var(--accent-2);font-weight:600}
+.nav .ix{font-family:var(--mono);font-size:10.5px;color:var(--muted);width:15px;flex:none}
+.nav a.on .ix{color:var(--accent)}
+.side-foot{padding:12px 14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.side-foot button{font-size:11.5px;color:var(--ink-2);font-weight:600}
+.side-foot button:hover{color:var(--bad)}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topbar-in{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:11px 26px}
+.ctx{display:flex;align-items:center;gap:9px;min-width:0}
+.ctx select{padding:7px 10px;border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--surface);font-weight:600;font-size:13.5px;max-width:min(46vw,360px)}
+.ctx-meta{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spacer{flex:1}
+.pill{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:20px;border:1px solid var(--line-2);color:var(--ink-2);background:var(--surface-2);white-space:nowrap}
+.menu-btn{display:none;padding:7px 10px;border:1px solid var(--line-2);border-radius:var(--r-sm);font-weight:600;font-size:13px}
+
+.content{padding:24px 26px 64px;max-width:1320px;width:100%}
+.page{display:none}
+.page.on{display:block;animation:fade .22s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.page-head{margin-bottom:20px}
+.eyebrow{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-family:var(--disp);font-size:25px;font-weight:700;letter-spacing:-.025em;margin-top:5px;line-height:1.2}
+.lede{color:var(--ink-2);font-size:14px;max-width:74ch;margin-top:7px}
+
+/* ---------- cards ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:16px}
+.card-head{padding:15px 18px 12px;border-bottom:1px solid var(--line)}
+.card-title{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card-what{font-size:12.5px;color:var(--muted);margin-top:3px}
+.card-body{padding:16px 18px}
+.card-body.flush{padding:0}
+
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1080px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:820px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+/* ---------- kpi ---------- */
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.kpi.k-good:before{background:var(--good)} .kpi.k-warn:before{background:var(--warn)} .kpi.k-bad:before{background:var(--bad)}
+.kpi-l{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.kpi-v{font-family:var(--mono);font-size:27px;font-weight:600;letter-spacing:-.03em;margin-top:3px;line-height:1.05}
+.kpi-v small{font-size:14px;color:var(--muted);font-weight:500;letter-spacing:0}
+.kpi-d{font-size:12px;color:var(--ink-2);margin-top:5px;line-height:1.4}
+.delta{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:1px 6px;border-radius:4px}
+.delta.up{background:var(--good-soft);color:var(--good)}
+.delta.down{background:var(--bad-soft);color:var(--bad)}
+.delta.flat{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+
+/* ---------- reading note ---------- */
+.note{background:var(--surface-2);border-top:1px solid var(--line);padding:12px 18px;font-size:13px;color:var(--ink-2);line-height:1.6}
+.note b{color:var(--ink);font-weight:600}
+.note .nl{display:block;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:5px}
+.note ul{margin:6px 0 0 17px}
+.note li{margin-bottom:3px}
+
+.chart-wrap{position:relative;width:100%}
+.h240{height:240px} .h280{height:280px} .h300{height:300px} .h320{height:320px}
+.h340{height:340px} .h380{height:380px} .h460{height:460px}
+
+/* ---------- tables ---------- */
+.tbl-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{background:var(--surface-2);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);font-weight:600;position:sticky;top:0;z-index:2}
+th:first-child,td:first-child{text-align:left}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+tbody tr:hover{background:var(--surface-2)}
+tr.sel{background:var(--accent-soft)!important}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--accent)}
+th.sortable:after{content:'\2195';opacity:.3;margin-left:4px;font-size:10px}
+th.sortable.asc:after{content:'\2191';opacity:1;color:var(--accent)}
+th.sortable.desc:after{content:'\2193';opacity:1;color:var(--accent)}
+.name-cell{max-width:280px;white-space:normal;line-height:1.35;font-weight:500}
+
+/* ---------- chips ---------- */
+.gr{display:inline-block;min-width:26px;text-align:center;font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 5px;border-radius:4px;color:#fff}
+.gr.na{background:var(--line);color:var(--muted)}
+.st{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:4px;border:1px solid}
+.st-BT{color:var(--t-bt);border-color:#B6D9CF;background:var(--good-soft)}
+.st-OnT{color:var(--t-ont);border-color:#C3D8E7;background:#EDF4F9}
+.st-OfT{color:var(--t-oft);border-color:#EDD8A8;background:var(--warn-soft)}
+.st-FfT{color:var(--t-fft);border-color:#EDC9D1;background:var(--bad-soft)}
+.st-na{color:var(--muted);border-color:var(--line);background:var(--surface-2)}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.toolbar input[type=search],.toolbar select{padding:7px 10px;border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--surface);font-size:13px}
+.toolbar input[type=search]{min-width:200px;flex:1;max-width:320px}
+.count{font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+.legend{display:flex;flex-wrap:wrap;gap:5px 13px;padding:11px 18px;border-top:1px solid var(--line);background:var(--surface-2);font-size:11.5px;color:var(--ink-2)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:baseline}
+
+/* ---------- checkpoint rail ---------- */
+.cprail{display:flex;gap:0;overflow-x:auto;padding:2px}
+.cp{flex:1;min-width:104px;border:1px solid var(--line);border-right:none;padding:11px 12px;background:var(--surface);position:relative}
+.cp:last-child{border-right:1px solid var(--line)}
+.cp:first-child{border-radius:var(--r) 0 0 var(--r)}
+.cp:last-child{border-radius:0 var(--r) var(--r) 0}
+.cp.target{background:var(--surface-2)}
+.cp.goal{background:var(--accent-soft);border-color:#BFDCE1}
+.cp-k{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.cp-k em{font-style:normal;color:var(--accent);font-weight:600}
+.cp-v{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.02em;margin-top:2px}
+.cp-v.dim{color:var(--line-2)}
+.cp-s{font-size:11px;color:var(--muted);margin-top:2px}
+
+.warnbox{border:1px solid #EDD8A8;background:var(--warn-soft);border-radius:var(--r);padding:12px 15px;font-size:13px;color:#6B4708;margin-bottom:16px}
+.warnbox b{display:block;font-weight:600;margin-bottom:4px;color:#513504}
+.warnbox ul{margin:4px 0 0 18px}
+.emptybox{border:1px dashed var(--line-2);border-radius:var(--r);padding:30px;text-align:center;color:var(--muted);font-size:13.5px}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;z-index:150;background:rgba(14,26,38,.42);display:none;align-items:flex-start;justify-content:center;padding:28px 16px;overflow-y:auto}
+.modal.on{display:flex}
+.modal-card{background:var(--surface);border-radius:var(--r);width:100%;max-width:760px;box-shadow:0 12px 40px rgba(14,26,38,.2);overflow:hidden}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.modal-head h3{font-family:var(--disp);font-size:17px;font-weight:600;letter-spacing:-.02em;line-height:1.25}
+.x{font-size:22px;line-height:1;color:var(--muted);padding:0 4px}
+.x:hover{color:var(--ink)}
+.modal-body{padding:18px 20px 22px}
+
+.dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:13px}
+.dl dt{color:var(--muted);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:600;padding-top:2px}
+.dl dd{font-weight:500}
+
+.dropzone{border:1.5px dashed var(--line-2);border-radius:var(--r);padding:26px;text-align:center;background:var(--surface-2);transition:.15s}
+.dropzone.hot{border-color:var(--accent);background:var(--accent-soft)}
+.dropzone p{color:var(--muted);font-size:13px;margin-top:6px}
+.filelist{margin-top:14px;font-size:13px}
+.filerow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r-sm);margin-bottom:7px;background:var(--surface)}
+.filerow small{color:var(--muted);font-size:11.5px}
+.del{color:var(--bad);font-size:12px;font-weight:600}
+
+.glossary dt{font-family:var(--mono);font-weight:600;color:var(--accent-2);text-transform:none;letter-spacing:0;font-size:12.5px}
+
+@media(max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{position:fixed;left:0;top:0;bottom:0;width:250px;z-index:100;transform:translateX(-100%);transition:transform .2s;height:100vh}
+  .side.open{transform:none;box-shadow:0 0 40px rgba(14,26,38,.2)}
+  .menu-btn{display:block}
+  .content{padding:18px 15px 56px}
+  .topbar-in{padding:10px 15px}
+  h1{font-size:21px}
+  .scrim{position:fixed;inset:0;background:rgba(14,26,38,.3);z-index:99;display:none}
+  .scrim.on{display:block}
+}
+@media print{.side,.topbar,.toolbar{display:none}.page{display:block!important}.card{break-inside:avoid}}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="rail"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="gate-body">
+      <div class="gate-mark">SIC<span>+</span> English</div>
+      <div class="gate-sub">Headcount Analytics &middot; PPD Lipis</div>
+      <form id="gateForm" autocomplete="off">
+        <div class="field">
+          <label for="u">Username</label>
+          <input id="u" type="text" autocapitalize="none" spellcheck="false" placeholder="Enter username">
+        </div>
+        <div class="field">
+          <label for="p">Password</label>
+          <input id="p" type="password" placeholder="Enter password">
+        </div>
+        <div class="gate-err" id="gateErr"></div>
+        <div class="field"><button type="submit" class="btn wide">Sign in</button></div>
+      </form>
+    </div>
+    <div class="gate-note">Authorised users only. This gate runs in your browser and controls who sees the dashboard on this device — it does not encrypt the data inside the file.</div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+<div class="scrim" id="scrim"></div>
+<div class="shell">
+
+  <aside class="side" id="side">
+    <div class="side-head">
+      <div class="brand">SIC<span>+</span> English</div>
+      <div class="brand-sub">Headcount Analytics</div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-group">This subject</div>
+      <a href="#" data-page="overview" class="on"><span class="ix">01</span> Overview</a>
+      <a href="#" data-page="targets"><span class="ix">02</span> Targets &amp; progress</a>
+      <a href="#" data-page="grades"><span class="ix">03</span> Grade movement</a>
+      <a href="#" data-page="track"><span class="ix">04</span> Track status</a>
+      <a href="#" data-page="students"><span class="ix">05</span> Students</a>
+      <a href="#" data-page="kelompok"><span class="ix">06</span> Kelompok &amp; BAU</a>
+      <a href="#" data-page="history"><span class="ix">07</span> SPM history</a>
+      <a href="#" data-page="demog"><span class="ix">08</span> Demographics</a>
+      <div class="nav-group">Across schools</div>
+      <a href="#" data-page="compare"><span class="ix">09</span> School comparison</a>
+      <div class="nav-group">Manage</div>
+      <a href="#" data-page="data"><span class="ix">10</span> Data &amp; import</a>
+      <a href="#" data-page="glossary"><span class="ix">11</span> Glossary</a>
+    </nav>
+    <div class="side-foot">
+      <span id="userTag">Signed in</span>
+      <button id="logout">Sign out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="rail"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="topbar-in">
+        <button class="menu-btn" id="menuBtn">Menu</button>
+        <div class="ctx">
+          <select id="schoolSel" aria-label="Select school"></select>
+        </div>
+        <div class="ctx-meta" id="ctxMeta"></div>
+        <div class="spacer"></div>
+        <span class="pill" id="pillSubject"></span>
+        <span class="pill" id="pillCohort"></span>
+      </div>
+    </header>
+
+    <div class="content" id="content">
+      <section class="page on" data-page="overview" id="p-overview"></section>
+      <section class="page" data-page="targets" id="p-targets"></section>
+      <section class="page" data-page="grades" id="p-grades"></section>
+      <section class="page" data-page="track" id="p-track"></section>
+      <section class="page" data-page="students" id="p-students"></section>
+      <section class="page" data-page="kelompok" id="p-kelompok"></section>
+      <section class="page" data-page="history" id="p-history"></section>
+      <section class="page" data-page="demog" id="p-demog"></section>
+      <section class="page" data-page="compare" id="p-compare"></section>
+      <section class="page" data-page="data" id="p-data"></section>
+      <section class="page" data-page="glossary" id="p-glossary"></section>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="modal" id="modal"><div class="modal-card">
+  <div class="modal-head"><div><h3 id="modalTitle"></h3><div id="modalSub" class="card-what"></div></div><button class="x" id="modalX" aria-label="Close">&times;</button></div>
+  <div class="modal-body" id="modalBody"></div>
+</div></div>
+
+<script>
+const SEED = {"schools":[{"id":"okh","profile":{"school":"SMK ORANG KAYA HAJI","principal":"TAUFIK BIN YUSOF","subject":"1119- BAHASA INGGERIS","headOfPanel":"NUR'AMALIN AISHAH BINTI ISMAIL","level":"SPM - T5","year":2026},"demographics":[{"race":"MELAYU","L":24.0,"P":20.0,"JUM":44.0},{"race":"CINA","L":0,"P":0,"JUM":0},{"race":"INDIA","L":0,"P":1.0,"JUM":1.0},{"race":"LAIN-LAIN","L":0,"P":0,"JUM":0},{"race":"JUMLAH","L":24.0,"P":21.0,"JUM":45.0}],"history":[{"label":"SPM 2021","cal":75.0,"grades":{"A+":{"bil":0,"pct":0},"A":{"bil":0,"pct":0},"A-":{"bil":1.0,"pct":0.01333333333},"B+":{"bil":5.0,"pct":0.06666666667},"B":{"bil":4.0,"pct":0.05333333333},"C+":{"bil":3.0,"pct":0.04},"C":{"bil":11.0,"pct":0.1466666667},"D":{"bil":15.0,"pct":0.2},"E":{"bil":18.0,"pct":0.24},"G":{"bil":18.0,"pct":0.24}},"lulus":{"bil":57.0,"pct":0.76},"gagal":{"bil":18.0,"pct":0.24},"gpmp":7.0},{"label":"SPM 2022","cal":47.0,"grades":{"A+":{"bil":0,"pct":0},"A":{"bil":1.0,"pct":0.02127659574},"A-":{"bil":2.0,"pct":0.04255319149},"B+":{"bil":1.0,"pct":0.02127659574},"B":{"bil":2.0,"pct":0.04255319149},"C+":{"bil":3.0,"pct":0.06382978723},"C":{"bil":6.0,"pct":0.1276595745},"D":{"bil":8.0,"pct":0.170212766},"E":{"bil":16.0,"pct":0.3404255319},"G":{"bil":8.0,"pct":0.170212766}},"lulus":{"bil":39.0,"pct":0.829787234},"gagal":{"bil":8.0,"pct":0.170212766},"gpmp":6.872340426},{"label":"SPM 2023","cal":62.0,"grades":{"A+":{"bil":0,"pct":0},"A":{"bil":3.0,"pct":0.04838709677},"A-":{"bil":2.0,"pct":0.03225806452},"B+":{"bil":1.0,"pct":0.01612903226},"B":{"bil":6.0,"pct":0.09677419355},"C+":{"bil":3.0,"pct":0.04838709677},"C":{"bil":6.0,"pct":0.09677419355},"D":{"bil":16.0,"pct":0.2580645161},"E":{"bil":15.0,"pct":0.2419354839},"G":{"bil":10.0,"pct":0.1612903226}},"lulus":{"bil":52.0,"pct":0.8387096774},"gagal":{"bil":10.0,"pct":0.1612903226},"gpmp":6.564516129},{"label":"SPM 2024","cal":52.0,"grades":{"A+":{"bil":1.0,"pct":0.01923076923},"A":{"bil":1.0,"pct":0.01923076923},"A-":{"bil":2.0,"pct":0.03846153846},"B+":{"bil":1.0,"pct":0.01923076923},"B":{"bil":1.0,"pct":0.01923076923},"C+":{"bil":6.0,"pct":0.1153846154},"C":{"bil":5.0,"pct":0.09615384615},"D":{"bil":15.0,"pct":0.2884615385},"E":{"bil":12.0,"pct":0.2307692308},"G":{"bil":8.0,"pct":0.1538461538}},"lulus":{"bil":44.0,"pct":0.8461538462},"gagal":{"bil":8.0,"pct":0.1538461538},"gpmp":6.634615385},{"label":"SPM 2025","cal":60.0,"grades":{"A+":{"bil":0,"pct":0},"A":{"bil":3.0,"pct":0.05},"A-":{"bil":3.0,"pct":0.05},"B+":{"bil":2.0,"pct":0.03333333333},"B":{"bil":3.0,"pct":0.05},"C+":{"bil":3.0,"pct":0.05},"C":{"bil":9.0,"pct":0.15},"D":{"bil":22.0,"pct":0.3666666667},"E":{"bil":14.0,"pct":0.2333333333},"G":{"bil":1.0,"pct":0.01666666667}},"lulus":{"bil":59.0,"pct":0.9833333333},"gagal":{"bil":1.0,"pct":0.01666666667},"gpmp":6.183333333}],"targets":[{"label":"ETR MP","cal":45.0,"grades":{"A+":{"bil":3.0,"pct":0.06666666667},"A":{"bil":1.0,"pct":0.02222222222},"A-":{"bil":1.0,"pct":0.02222222222},"B+":{"bil":2.0,"pct":0.04444444444},"B":{"bil":3.0,"pct":0.06666666667},"C+":{"bil":2.0,"pct":0.04444444444},"C":{"bil":1.0,"pct":0.02222222222},"D":{"bil":23.0,"pct":0.5111111111},"E":{"bil":9.0,"pct":0.2},"G":{"bil":0,"pct":0}},"lulus":{"bil":45.0,"pct":1.0},"gagal":{"bil":0,"pct":0},"gpmp":6.0},{"label":"TOV","cal":44.0,"grades":{"A+":{"bil":1.0,"pct":0.02272727273},"A":{"bil":2.0,"pct":0.04545454545},"A-":{"bil":1.0,"pct":0.02272727273},"B+":{"bil":1.0,"pct":0.02272727273},"B":{"bil":2.0,"pct":0.04545454545},"C+":{"bil":2.0,"pct":0.04545454545},"C":{"bil":3.0,"pct":0.06818181818},"D":{"bil":1.0,"pct":0.02272727273},"E":{"bil":5.0,"pct":0.1136363636},"G":{"bil":26.0,"pct":0.5909090909}},"lulus":{"bil":18.0,"pct":0.4090909091},"gagal":{"bil":26.0,"pct":0.5909090909},"gpmp":7.363636364},{"label":"OTI1","cal":45.0,"grades":{"A+":{"bil":1.0,"pct":0.02222222222},"A":{"bil":2.0,"pct":0.04444444444},"A-":{"bil":1.0,"pct":0.02222222222},"B+":{"bil":1.0,"pct":0.02222222222},"B":{"bil":2.0,"pct":0.04444444444},"C+":{"bil":2.0,"pct":0.04444444444},"C":{"bil":4.0,"pct":0.08888888889},"D":{"bil":1.0,"pct":0.02222222222},"E":{"bil":4.0,"pct":0.08888888889},"G":{"bil":27.0,"pct":0.6}},"lulus":{"bil":19.0,"pct":0.4222222222},"gagal":{"bil":27.0,"pct":0.6},"gpmp":7.355555556},{"label":"UP1","cal":45.0,"grades":{"A+":{"bil":0,"pct":0},"A":{"bil":2.0,"pct":0.04444444444},"A-":{"bil":2.0,"pct":0.04444444444},"B+":{"bil":0,"pct":0},"B":{"bil":2.0,"pct":0.04444444444},"C+":{"bil":7.0,"pct":0.1555555556},"C":{"bil":1.0,"pct":0.02222222222},"D":{"bil":4.0,"pct":0.08888888889},"E":{"bil":7.0,"pct":0.1555555556},"G":{"bil":20.0,"pct":0.4444444444}},"lulus":{"bil":25.0,"pct":0.5555555556},"gagal":{"bil":20.0,"pct":0.4444444444},"gpmp":7.088888889},{"label":"OTI2","cal":45.0,"grades":{"A+":{"bil":1.0,"pct":0.02222222222},"A":{"bil":2.0,"pct":0.04444444444},"A-":{"bil":1.0,"pct":0.02222222222},"B+":{"bil":1.0,"pct":0.02222222222},"B":{"bil":3.0,"pct":0.06666666667},"C+":{"bil":2.0,"pct":0.04444444444},"C":{"bil":3.0,"pct":0.06666666667},"D":{"bil":1.0,"pct":0.02222222222},"E":{"bil":9.0,"pct":0.2},"G":{"bil":22.0,"pct":0.4888888889}},"lulus":{"bil":24.0,"pct":0.5333333333},"gagal":{"bil":22.0,"pct":0.4888888889},"gpmp":7.2},{"label":"PPT","cal":45.0,"grades":{"A+":{"bil":1.0,"pct":0.02222222222},"A":{"bil":2.0,"pct":0.04444444444},"A-":{"bil":1.0,"pct":0.02222222222},"B+":{"bil":2.0,"pct":0.04444444444},"B":{"bil":3.0,"pct":0.06666666667},"C+":{"bil":4.0,"pct":0.08888888889},"C":{"bil":1.0,"pct":0.02222222222},"D":{"bil":8.0,"pct":0.1777777778},"E":{"bil":6.0,"pct":0.1333333333},"G":{"bil":17.0,"pct":0.3777777778}},"lulus":{"bil":28.0,"pct":0.6222222222},"gagal":{"bil":17.0,"pct":0.3777777778},"gpmp":6.777777778},{"label":"OTI3","cal":45.0,"grades":{"A+":{"bil":1.0,"pct":0.02222222222},"A":{"bil":2.0,"pct":0.04444444444},"A-":{"bil":1.0,"pct":0.02222222222},"B+":{"bil":1.0,"pct":0.02222222222},"B":{"bil":3.0,"pct":0.06666666667},"C+":{"bil":2.0,"pct":0.04444444444},"C":{"bil":3.0,"pct":0.06666666667},"D":{"bil":1.0,"pct":0.02222222222},"E":{"bil":17.0,"pct":0.3777777778},"G":{"bil":14.0,"pct":0.3111111111}},"lulus":{"bil":34.0,"pct":0.7555555556},"gagal":{"bil":14.0,"pct":0.3111111111},"gpmp":7.022222222},{"label":"PPC","cal":0.0,"grades":{"A+":{"bil":0,"pct":0},"A":{"bil":0,"pct":0},"A-":{"bil":0,"pct":0},"B+":{"bil":0,"pct":0},"B":{"bil":0,"pct":0},"C+":{"bil":0,"pct":0},"C":{"bil":0,"pct":0},"D":{"bil":0,"pct":0},"E":{"bil":0,"pct":0},"G":{"bil":0,"pct":0}},"lulus":{"bil":0,"pct":0},"gagal":{"bil":0,"pct":0},"gpmp":null}],"students":[{"no":1,"name":"FATIN AINUN BATRISYIA BINTI SAZALI","TOV":{"mark":53.0,"grade":"C","status":null},"ETR":{"mark":60.0,"grade":"B","status":null},"OTI1":{"mark":54.75,"grade":"C","status":null},"UP1":{"mark":53.0,"grade":"C","status":"OnT"},"OTI2":{"mark":56.5,"grade":"C+","status":null},"PPT":{"mark":58.0,"grade":"C+","status":"BT"},"OTI3":{"mark":58.25,"grade":"C+","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":2,"name":"LUQMAN HAKIM BIN SAZALI","TOV":{"mark":86.0,"grade":"A","status":null},"ETR":{"mark":90.0,"grade":"A+","status":null},"OTI1":{"mark":87.0,"grade":"A","status":null},"UP1":{"mark":84.0,"grade":"A","status":"OnT"},"OTI2":{"mark":88.0,"grade":"A","status":null},"PPT":{"mark":89.0,"grade":"A","status":"BT"},"OTI3":{"mark":89.0,"grade":"A","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":3,"name":"MUHAMMAD ISKANDAR ZULQARNAIN BIN ZARUJI","TOV":{"mark":65.0,"grade":"B+","status":null},"ETR":{"mark":70.0,"grade":"A-","status":null},"OTI1":{"mark":66.25,"grade":"B+","status":null},"UP1":{"mark":55.0,"grade":"C+","status":"OfT"},"OTI2":{"mark":67.5,"grade":"B+","status":null},"PPT":{"mark":60.0,"grade":"B","status":"OnT"},"OTI3":{"mark":68.75,"grade":"B+","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":4,"name":"MUHAMMAD NUR IMAN BIN ABDULLAH","TOV":{"mark":86.0,"grade":"A","status":null},"ETR":{"mark":90.0,"grade":"A+","status":null},"OTI1":{"mark":87.0,"grade":"A","status":null},"UP1":{"mark":75.0,"grade":"A-","status":"OfT"},"OTI2":{"mark":88.0,"grade":"A","status":null},"PPT":{"mark":82.0,"grade":"A","status":"OnT"},"OTI3":{"mark":89.0,"grade":"A","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":5,"name":"NUR AMNI MARDHIAH BINTI AHMAD NIZAM","TOV":{"mark":91.0,"grade":"A+","status":null},"ETR":{"mark":95.0,"grade":"A+","status":null},"OTI1":{"mark":92.0,"grade":"A+","status":null},"UP1":{"mark":85.0,"grade":"A","status":"OnT"},"OTI2":{"mark":93.0,"grade":"A+","status":null},"PPT":{"mark":93.0,"grade":"A+","status":"OnT"},"OTI3":{"mark":94.0,"grade":"A+","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":6,"name":"WAN NURSYAIDATUL ZAHRA BINTI WAN AHMAD ZABRI","TOV":{"mark":71.0,"grade":"A-","status":null},"ETR":{"mark":80.0,"grade":"A","status":null},"OTI1":{"mark":73.25,"grade":"A-","status":null},"UP1":{"mark":79.0,"grade":"A-","status":"BT"},"OTI2":{"mark":75.5,"grade":"A-","status":null},"PPT":{"mark":78.0,"grade":"A-","status":"BT"},"OTI3":{"mark":77.75,"grade":"A-","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":7,"name":"AMINUDDIN MUZAKKIR BIN ABDUL MUTALIB","TOV":{"mark":35.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":37.5,"grade":"G","status":null},"UP1":{"mark":44.0,"grade":"E","status":"BT"},"OTI2":{"mark":40.0,"grade":"E","status":null},"PPT":{"mark":41.0,"grade":"E","status":"BT"},"OTI3":{"mark":42.5,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":8,"name":"MUHAMMAD ALIF BIN JAMIZAN","TOV":{"mark":27.0,"grade":"G","status":null},"ETR":{"mark":40.0,"grade":"E","status":null},"OTI1":{"mark":30.25,"grade":"G","status":null},"UP1":{"mark":42.0,"grade":"E","status":"BT"},"OTI2":{"mark":33.5,"grade":"G","status":null},"PPT":{"mark":40.0,"grade":"E","status":"BT"},"OTI3":{"mark":36.75,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":9,"name":"MUNAWWARAH SYAHRAIN BINTI MUSTAKIM KAMA","TOV":{"mark":35.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":37.5,"grade":"G","status":null},"UP1":{"mark":44.0,"grade":"E","status":"BT"},"OTI2":{"mark":40.0,"grade":"E","status":null},"PPT":{"mark":48.0,"grade":"D","status":"BT"},"OTI3":{"mark":42.5,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":10,"name":"NIK HAZIQ AZHARI BIN NIK MOHD RAMLY","TOV":{"mark":57.0,"grade":"C+","status":null},"ETR":{"mark":60.0,"grade":"B","status":null},"OTI1":{"mark":57.75,"grade":"C+","status":null},"UP1":{"mark":64.0,"grade":"B","status":"BT"},"OTI2":{"mark":58.5,"grade":"C+","status":null},"PPT":{"mark":62.0,"grade":"B","status":"BT"},"OTI3":{"mark":59.25,"grade":"C+","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":11,"name":"NOR ATIKAH BINTI SALLEHUDDIN","TOV":{"mark":51.0,"grade":"C","status":null},"ETR":{"mark":55.0,"grade":"C+","status":null},"OTI1":{"mark":52.0,"grade":"C","status":null},"UP1":{"mark":58.0,"grade":"C+","status":"BT"},"OTI2":{"mark":53.0,"grade":"C","status":null},"PPT":{"mark":61.0,"grade":"B","status":"BT"},"OTI3":{"mark":54.0,"grade":"C","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":12,"name":"NUR AFIFAH QAISARA BINTI SHAIFUL NIZAM","TOV":{"mark":37.0,"grade":"G","status":null},"ETR":{"mark":40.0,"grade":"E","status":null},"OTI1":{"mark":37.75,"grade":"G","status":null},"UP1":{"mark":46.0,"grade":"D","status":"BT"},"OTI2":{"mark":38.5,"grade":"G","status":null},"PPT":{"mark":49.0,"grade":"D","status":"BT"},"OTI3":{"mark":39.25,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":13,"name":"NUR AIN FATIHAH BINTI ADMAN","TOV":{"mark":41.0,"grade":"E","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":42.0,"grade":"E","status":null},"UP1":{"mark":40.0,"grade":"E","status":"OnT"},"OTI2":{"mark":43.0,"grade":"E","status":null},"PPT":{"mark":41.0,"grade":"E","status":"OnT"},"OTI3":{"mark":44.0,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":14,"name":"NUR ARFAH BINTI RAZALI","TOV":{"mark":42.0,"grade":"E","status":null},"ETR":{"mark":44.0,"grade":"E","status":null},"OTI1":{"mark":42.5,"grade":"E","status":null},"UP1":{"mark":56.0,"grade":"C+","status":"BT"},"OTI2":{"mark":43.0,"grade":"E","status":null},"PPT":{"mark":65.0,"grade":"B+","status":"BT"},"OTI3":{"mark":43.5,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":15,"name":"NUR ARIANA BINTI MOHD HAIDIR","TOV":{"mark":58.0,"grade":"C+","status":null},"ETR":{"mark":64.0,"grade":"B","status":null},"OTI1":{"mark":59.5,"grade":"C+","status":null},"UP1":{"mark":55.0,"grade":"C+","status":"OnT"},"OTI2":{"mark":61.0,"grade":"B","status":null},"PPT":{"mark":55.0,"grade":"C+","status":"OnT"},"OTI3":{"mark":62.5,"grade":"B","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":16,"name":"NURHIDAYAH ARISSA BINTI AHMAD EZANY","TOV":{"mark":60.0,"grade":"B","status":null},"ETR":{"mark":65.0,"grade":"B+","status":null},"OTI1":{"mark":61.25,"grade":"B","status":null},"UP1":{"mark":61.0,"grade":"B","status":"OnT"},"OTI2":{"mark":62.5,"grade":"B","status":null},"PPT":{"mark":66.0,"grade":"B+","status":"BT"},"OTI3":{"mark":63.75,"grade":"B","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":17,"name":"SITI HAAWA BINTI KHAIRUL","TOV":{"mark":23.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":28.5,"grade":"G","status":null},"UP1":{"mark":36.0,"grade":"G","status":"BT"},"OTI2":{"mark":34.0,"grade":"G","status":null},"PPT":{"mark":40.0,"grade":"E","status":"BT"},"OTI3":{"mark":39.5,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":18,"name":"SYAZWAN EIQMAL HAQEEM BIN ABDULLAH","TOV":{"mark":40.0,"grade":"E","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":41.25,"grade":"E","status":null},"UP1":{"mark":47.0,"grade":"D","status":"BT"},"OTI2":{"mark":42.5,"grade":"E","status":null},"PPT":{"mark":45.0,"grade":"D","status":"BT"},"OTI3":{"mark":43.75,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":19,"name":"ALIF RIDZUAN BIN ABDULLAH","TOV":{"mark":26.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":30.75,"grade":"G","status":null},"UP1":{"mark":41.0,"grade":"E","status":"BT"},"OTI2":{"mark":35.5,"grade":"G","status":null},"PPT":{"mark":32.0,"grade":"G","status":"OnT"},"OTI3":{"mark":40.25,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":20,"name":"MUHAMAD ADAM HAKIM BIN BAHARI","TOV":{"mark":22.0,"grade":"G","status":null},"ETR":{"mark":40.0,"grade":"E","status":null},"OTI1":{"mark":26.5,"grade":"G","status":null},"UP1":{"mark":30.0,"grade":"G","status":"BT"},"OTI2":{"mark":31.0,"grade":"G","status":null},"PPT":{"mark":20.0,"grade":"G","status":"OfT"},"OTI3":{"mark":35.5,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":21,"name":"MUHAMAD SHAZALI BIN RUSHAHIRI","TOV":{"mark":62.0,"grade":"B","status":null},"ETR":{"mark":65.0,"grade":"B+","status":null},"OTI1":{"mark":62.75,"grade":"B","status":null},"UP1":{"mark":59.0,"grade":"C+","status":"OnT"},"OTI2":{"mark":63.5,"grade":"B","status":null},"PPT":{"mark":55.0,"grade":"C+","status":"OfT"},"OTI3":{"mark":64.25,"grade":"B","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":22,"name":"MUHAMMAD DANISH IQRAM BIN MOHD AROZA","TOV":{"mark":32.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":35.25,"grade":"G","status":null},"UP1":{"mark":36.0,"grade":"G","status":"BT"},"OTI2":{"mark":38.5,"grade":"G","status":null},"PPT":{"mark":46.0,"grade":"D","status":"BT"},"OTI3":{"mark":41.75,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":23,"name":"MUHAMMAD DARIUS AMIRUL BIN MOHD AZIMI","TOV":{"mark":23.0,"grade":"G","status":null},"ETR":{"mark":40.0,"grade":"E","status":null},"OTI1":{"mark":27.25,"grade":"G","status":null},"UP1":{"mark":27.0,"grade":"G","status":"OnT"},"OTI2":{"mark":31.5,"grade":"G","status":null},"PPT":{"mark":18.0,"grade":"G","status":"OfT"},"OTI3":{"mark":35.75,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":24,"name":"MUHAMMAD JASMINE TARIQ RAFIQI BIN MOHD JASMANI","TOV":{"mark":41.0,"grade":"E","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":42.0,"grade":"E","status":null},"UP1":{"mark":43.0,"grade":"E","status":"BT"},"OTI2":{"mark":43.0,"grade":"E","status":null},"PPT":{"mark":41.0,"grade":"E","status":"OnT"},"OTI3":{"mark":44.0,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":25,"name":"MUHAMMAD RAFIQ DANISH BIN MOHD RADUAN","TOV":{"mark":26.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":30.75,"grade":"G","status":null},"UP1":{"mark":31.0,"grade":"G","status":"BT"},"OTI2":{"mark":35.5,"grade":"G","status":null},"PPT":{"mark":29.0,"grade":"G","status":"OnT"},"OTI3":{"mark":40.25,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":26,"name":"NUR AIN BALQIS BINTI ZAHARI","TOV":{"mark":26.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":30.75,"grade":"G","status":null},"UP1":{"mark":31.0,"grade":"G","status":"BT"},"OTI2":{"mark":35.5,"grade":"G","status":null},"PPT":{"mark":36.0,"grade":"G","status":"BT"},"OTI3":{"mark":40.25,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":27,"name":"NUR AISYAH BINTI AHMAD NAZERI","TOV":{"mark":28.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":32.25,"grade":"G","status":null},"UP1":{"mark":39.0,"grade":"G","status":"BT"},"OTI2":{"mark":36.5,"grade":"G","status":null},"PPT":{"mark":48.0,"grade":"D","status":"BT"},"OTI3":{"mark":40.75,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":28,"name":"NUR QISTINA QURRATU' AINI BINTI MOHAMAD NOR","TOV":{"mark":50.0,"grade":"C","status":null},"ETR":{"mark":55.0,"grade":"C+","status":null},"OTI1":{"mark":51.25,"grade":"C","status":null},"UP1":{"mark":47.0,"grade":"D","status":"OnT"},"OTI2":{"mark":52.5,"grade":"C","status":null},"PPT":{"mark":49.0,"grade":"D","status":"OnT"},"OTI3":{"mark":53.75,"grade":"C","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":29,"name":"NURAIN BALQIS BINTI MOHD ZULKURNAIN","TOV":{"mark":null,"grade":null,"status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":11.25,"grade":"G","status":null},"UP1":{"mark":58.0,"grade":"C+","status":"BT"},"OTI2":{"mark":22.5,"grade":"G","status":null},"PPT":{"mark":49.0,"grade":"D","status":"BT"},"OTI3":{"mark":33.75,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":30,"name":"NURAISYAH UMAIRA BINTI FADLI","TOV":{"mark":38.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":39.75,"grade":"G","status":null},"UP1":{"mark":42.0,"grade":"E","status":"BT"},"OTI2":{"mark":41.5,"grade":"E","status":null},"PPT":{"mark":49.0,"grade":"D","status":"BT"},"OTI3":{"mark":43.25,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":31,"name":"NURQAZIMAH BINTI ZULKIFLI","TOV":{"mark":28.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":32.25,"grade":"G","status":null},"UP1":{"mark":31.0,"grade":"G","status":"OnT"},"OTI2":{"mark":36.5,"grade":"G","status":null},"PPT":{"mark":36.0,"grade":"G","status":"OnT"},"OTI3":{"mark":40.75,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":32,"name":"NURUL AISYAH BINTI NIK SAIDEEN","TOV":{"mark":34.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":36.75,"grade":"G","status":null},"UP1":{"mark":33.0,"grade":"G","status":"OnT"},"OTI2":{"mark":39.5,"grade":"G","status":null},"PPT":{"mark":37.0,"grade":"G","status":"OnT"},"OTI3":{"mark":42.25,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":33,"name":"NURUL NABILA BINTI JAMALUDDIN","TOV":{"mark":44.0,"grade":"E","status":null},"ETR":{"mark":49.0,"grade":"D","status":null},"OTI1":{"mark":45.25,"grade":"D","status":null},"UP1":{"mark":45.0,"grade":"D","status":"OnT"},"OTI2":{"mark":46.5,"grade":"D","status":null},"PPT":{"mark":50.0,"grade":"C","status":"BT"},"OTI3":{"mark":47.75,"grade":"D","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":34,"name":"RABIATUL ADAWIYAH BINTI FADZILAH","TOV":{"mark":36.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":38.25,"grade":"G","status":null},"UP1":{"mark":28.0,"grade":"G","status":"OfT"},"OTI2":{"mark":40.5,"grade":"E","status":null},"PPT":{"mark":36.0,"grade":"G","status":"OnT"},"OTI3":{"mark":42.75,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":35,"name":"NURUL JANNAH BINTI MUHAMMAD RAZLAN","TOV":{"mark":49.0,"grade":"D","status":null},"ETR":{"mark":54.0,"grade":"C","status":null},"OTI1":{"mark":50.25,"grade":"C","status":null},"UP1":{"mark":57.0,"grade":"C+","status":"BT"},"OTI2":{"mark":51.5,"grade":"C","status":null},"PPT":{"mark":57.0,"grade":"C+","status":"BT"},"OTI3":{"mark":52.75,"grade":"C","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":36,"name":"ABDULL QAYYUM BIN HAMIZAN","TOV":{"mark":16.0,"grade":"G","status":null},"ETR":{"mark":40.0,"grade":"E","status":null},"OTI1":{"mark":22.0,"grade":"G","status":null},"UP1":{"mark":13.0,"grade":"G","status":"OfT"},"OTI2":{"mark":28.0,"grade":"G","status":null},"PPT":{"mark":13.0,"grade":"G","status":"OfT"},"OTI3":{"mark":34.0,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":37,"name":"AIMAN IKHMAL BIN AHMAD SHUKRI","TOV":{"mark":22.0,"grade":"G","status":null},"ETR":{"mark":40.0,"grade":"E","status":null},"OTI1":{"mark":26.5,"grade":"G","status":null},"UP1":{"mark":15.0,"grade":"G","status":"OfT"},"OTI2":{"mark":31.0,"grade":"G","status":null},"PPT":{"mark":21.0,"grade":"G","status":"OfT"},"OTI3":{"mark":35.5,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":38,"name":"AIRYL AIDIL SHAH BIN SHARUL ANUAR","TOV":{"mark":22.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":27.75,"grade":"G","status":null},"UP1":{"mark":9.0,"grade":"G","status":"OfT"},"OTI2":{"mark":33.5,"grade":"G","status":null},"PPT":{"mark":30.0,"grade":"G","status":"OnT"},"OTI3":{"mark":39.25,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":39,"name":"FARISH DANISH BIN NORMAN","TOV":{"mark":36.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":38.25,"grade":"G","status":null},"UP1":{"mark":37.0,"grade":"G","status":"OnT"},"OTI2":{"mark":40.5,"grade":"E","status":null},"PPT":{"mark":40.0,"grade":"E","status":"OnT"},"OTI3":{"mark":42.75,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":40,"name":"MOHAMAD DANISH HAIKAL BIN YUSMI","TOV":{"mark":20.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":26.25,"grade":"G","status":null},"UP1":{"mark":22.0,"grade":"G","status":"OnT"},"OTI2":{"mark":32.5,"grade":"G","status":null},"PPT":{"mark":27.0,"grade":"G","status":"OnT"},"OTI3":{"mark":38.75,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":41,"name":"MOHAMMAD IDZHAM MIKHAEL BIN ZAIFULNIZAM","TOV":{"mark":17.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":24.0,"grade":"G","status":null},"UP1":{"mark":21.0,"grade":"G","status":"OnT"},"OTI2":{"mark":31.0,"grade":"G","status":null},"PPT":{"mark":25.0,"grade":"G","status":"OnT"},"OTI3":{"mark":38.0,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":42,"name":"MUHAMAD AL IMAN IZHAM BIN MOHD FADLY","TOV":{"mark":13.0,"grade":"G","status":null},"ETR":{"mark":40.0,"grade":"E","status":null},"OTI1":{"mark":19.75,"grade":"G","status":null},"UP1":{"mark":17.0,"grade":"G","status":"OnT"},"OTI2":{"mark":26.5,"grade":"G","status":null},"PPT":{"mark":20.0,"grade":"G","status":"OnT"},"OTI3":{"mark":33.25,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":43,"name":"MUHAMAD ASYRAF AIMAN BIN ABDULLAH","TOV":{"mark":20.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":26.25,"grade":"G","status":null},"UP1":{"mark":17.0,"grade":"G","status":"OfT"},"OTI2":{"mark":32.5,"grade":"G","status":null},"PPT":{"mark":25.0,"grade":"G","status":"OnT"},"OTI3":{"mark":38.75,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":44,"name":"MUHAMAD PUTRA ZAIFUL BIN MOHD RAZI","TOV":{"mark":32.0,"grade":"G","status":null},"ETR":{"mark":45.0,"grade":"D","status":null},"OTI1":{"mark":35.25,"grade":"G","status":null},"UP1":{"mark":30.0,"grade":"G","status":"OnT"},"OTI2":{"mark":38.5,"grade":"G","status":null},"PPT":{"mark":33.0,"grade":"G","status":"OnT"},"OTI3":{"mark":41.75,"grade":"E","status":null},"PPC":{"mark":null,"grade":null,"status":null}},{"no":45,"name":"MUHAMMAD ADAM HAIKAL BIN ROSLAN","TOV":{"mark":18.0,"grade":"G","status":null},"ETR":{"mark":40.0,"grade":"E","status":null},"OTI1":{"mark":23.5,"grade":"G","status":null},"UP1":{"mark":15.0,"grade":"G","status":"OfT"},"OTI2":{"mark":29.0,"grade":"G","status":null},"PPT":{"mark":18.0,"grade":"G","status":"OfT"},"OTI3":{"mark":34.5,"grade":"G","status":null},"PPC":{"mark":null,"grade":null,"status":null}}],"kelompok":[{"group":"CEMERLANG","grade":"A+","tov":1.0,"tovTotal":4.0,"etr":3.0,"etrTotal":5.0,"diff":2.0,"murid5PGP":0,"bau":1.0},{"group":null,"grade":"A","tov":2.0,"tovTotal":null,"etr":1.0,"etrTotal":null,"diff":-1.0,"murid5PGP":0,"bau":2.0},{"group":null,"grade":"A-","tov":1.0,"tovTotal":null,"etr":1.0,"etrTotal":null,"diff":0,"murid5PGP":0,"bau":1.0},{"group":"KEPUJIAN","grade":"B+","tov":1.0,"tovTotal":8.0,"etr":2.0,"etrTotal":8.0,"diff":1.0,"murid5PGP":0,"bau":1.0},{"group":null,"grade":"B","tov":2.0,"tovTotal":null,"etr":3.0,"etrTotal":null,"diff":1.0,"murid5PGP":0,"bau":2.0},{"group":null,"grade":"C+","tov":2.0,"tovTotal":null,"etr":2.0,"etrTotal":null,"diff":0,"murid5PGP":0,"bau":2.0},{"group":null,"grade":"C","tov":3.0,"tovTotal":null,"etr":1.0,"etrTotal":null,"diff":-2.0,"murid5PGP":0,"bau":3.0},{"group":"LULUS","grade":"D","tov":1.0,"tovTotal":6.0,"etr":23.0,"etrTotal":32.0,"diff":22.0,"murid5PGP":1.0,"bau":0},{"group":null,"grade":"E","tov":5.0,"tovTotal":null,"etr":9.0,"etrTotal":null,"diff":4.0,"murid5PGP":5.0,"bau":0},{"group":"GAGAL","grade":"G","tov":26.0,"tovTotal":26.0,"etr":0,"etrTotal":0.0,"diff":-26.0,"murid5PGP":26.0,"bau":0}],"source":"TAPAK_ASAL_HEADCOUNT.xlsx"}]};
+
+/* ============================================================
+   CORE MODEL
+   ============================================================ */
+const GRADES = ['A+','A','A-','B+','B','C+','C','D','E','G'];
+const GP     = {'A+':0,'A':1,'A-':2,'B+':3,'B':4,'C+':5,'C':6,'D':7,'E':8,'G':9};
+const CUTS   = [[90,'A+'],[80,'A'],[70,'A-'],[65,'B+'],[60,'B'],[55,'C+'],[50,'C'],[45,'D'],[40,'E'],[0,'G']];
+const GCOL   = {'A+':'#0B6E5A','A':'#18866B','A-':'#39A07C','B+':'#74B075','B':'#A3BA66',
+                'C+':'#D6B349','C':'#E29B3E','D':'#DE7B3C','E':'#CF5B41','G':'#A8324A'};
+const TCOL   = {BT:'#0B6E5A',OnT:'#2C6F9B',OfT:'#C98A1B',FfT:'#A8324A'};
+const TNAME  = {BT:'Beyond Target',OnT:'On Track',OfT:'Off Track',FfT:'Far from Track'};
+const TDESC  = {BT:'Current mark is above the OTI checkpoint.',
+                OnT:'Current mark is within 8 marks below the OTI checkpoint.',
+                OfT:'Current mark is 9–19 marks below the OTI checkpoint.',
+                FfT:'Current mark is 20 or more marks below the OTI checkpoint.'};
+
+/* Stage dictionary — the full headcount cycle, in order */
+const STAGES = [
+  {k:'TOV',  label:'TOV',   full:'Take-Off Value',            kind:'actual', note:'Baseline mark carried into the year.'},
+  {k:'OTI1', label:'OTI 1', full:'Operational Target Increment 1', kind:'target', pairs:'UP1'},
+  {k:'UP1',  label:'UP 1',  full:'Ujian Penggal 1',           kind:'actual', vs:'OTI1'},
+  {k:'OTI2', label:'OTI 2', full:'Operational Target Increment 2', kind:'target', pairs:'PPT'},
+  {k:'PPT',  label:'PPT',   full:'Peperiksaan Pertengahan Tahun', kind:'actual', vs:'OTI2'},
+  {k:'OTI3', label:'OTI 3', full:'Operational Target Increment 3', kind:'target', pairs:'PPC'},
+  {k:'PPC',  label:'PPC',   full:'Peperiksaan Percubaan',     kind:'actual', vs:'OTI3'},
+  {k:'ETR',  label:'ETR',   full:'Expected Target Result',    kind:'goal',   note:'The result the panel commits to for SPM.'}
+];
+const ACTUALS  = ['TOV','UP1','PPT','PPC'];
+const CHECKPTS = [{a:'UP1',t:'OTI1'},{a:'PPT',t:'OTI2'},{a:'PPC',t:'OTI3'}];
+const KELOMPOK = {CEMERLANG:['A+','A','A-'],KEPUJIAN:['B+','B','C+','C'],LULUS:['D','E'],GAGAL:['G']};
+
+/* ---- helpers ---- */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const num = (v,d=2) => (v===null||v===undefined||isNaN(v)) ? '—' : Number(v).toFixed(d);
+const pct = v => (v===null||v===undefined||isNaN(v)) ? '—' : (v*100).toFixed(1)+'%';
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const gradeOf = m => { if(m===null||m===undefined||isNaN(m)) return null; for(const [c,g] of CUTS) if(m>=c) return g; return 'G'; };
+/* Title-cases names while leaving Malaysian school-type acronyms and codes alone */
+const KEEP_CAPS = new Set(['SMK','SK','SJK','SJKC','SJKT','SMJK','SMKA','SBP','MRSM','SMT','SMV','KV','SM',
+  'RPS','SPM','PPD','JPN','PT3','UPSR','KAFA','IPT','SIC','BM','BI','TOV','ETR','OTI','PPT','PPC','UP','GPMP','BAU']);
+const titleCase = s => String(s||'').trim().split(/(\s+)/).map(w=>{
+  const bare = w.replace(/[^\w+]/g,'').toUpperCase();
+  if(!w.trim()) return w;
+  if(KEEP_CAPS.has(bare) || /\d/.test(w)) return w.toUpperCase();
+  return w.toLowerCase().replace(/(^|[^a-z])([a-z])/g,(m,a,b)=>a+b.toUpperCase());
+}).join('');
+
+function statusOf(actual, target){
+  if(actual===null||actual===undefined||target===null||target===undefined) return null;
+  const d = actual - target;
+  if(d > 0) return 'BT';
+  if(d >= -8) return 'OnT';
+  if(d >= -19) return 'OfT';
+  return 'FfT';
+}
+function gpmpFromCounts(c){
+  let n=0,s=0; GRADES.forEach(g=>{ const v=c[g]||0; n+=v; s+=v*GP[g]; });
+  return n? s/n : null;
+}
+function countGrades(students, stage){
+  const c={}; GRADES.forEach(g=>c[g]=0); let n=0;
+  students.forEach(st=>{ const g=st[stage] && st[stage].grade; if(g && c[g]!==undefined){c[g]++;n++;} });
+  return {counts:c, n};
+}
+function stageStats(students, stage){
+  const {counts,n} = countGrades(students, stage);
+  const marks = students.map(s=>s[stage] && s[stage].mark).filter(m=>m!==null&&m!==undefined&&!isNaN(m));
+  const pass  = GRADES.slice(0,9).reduce((a,g)=>a+counts[g],0);
+  return {
+    stage, n, counts,
+    gpmp: gpmpFromCounts(counts),
+    pass, fail: counts.G,
+    passPct: n? pass/n : null,
+    mean: marks.length? marks.reduce((a,b)=>a+b,0)/marks.length : null,
+    min: marks.length? Math.min(...marks) : null,
+    max: marks.length? Math.max(...marks) : null,
+    marks
+  };
+}
+function trackCounts(students, chk){
+  const c={BT:0,OnT:0,OfT:0,FfT:0}; let n=0;
+  students.forEach(s=>{
+    const st = (s[chk.a] && s[chk.a].status) || statusOf(s[chk.a]&&s[chk.a].mark, s[chk.t]&&s[chk.t].mark);
+    if(st && c[st]!==undefined){c[st]++;n++;}
+  });
+  return {counts:c,n};
+}
+/* Most recent actual assessment that actually has data */
+function latestActual(students){
+  for(let i=ACTUALS.length-1;i>=0;i--){
+    const s = stageStats(students, ACTUALS[i]);
+    if(s.n>0) return s;
+  }
+  return stageStats(students,'TOV');
+}
+function latestCheckpoint(students){
+  for(let i=CHECKPTS.length-1;i>=0;i--){
+    const t = trackCounts(students, CHECKPTS[i]);
+    if(t.n>0) return Object.assign({},CHECKPTS[i],t);
+  }
+  return null;
+}
+function kelompokOf(g){ for(const k in KELOMPOK) if(KELOMPOK[k].includes(g)) return k; return null; }
+
+/* ---- state ---- */
+const DB = { schools: SEED.schools.map(normalise) };
+let CUR = 0;
+const CHARTS = {};
+
+/* The workbook builds each OTI as an equal quarter-step from TOV up to ETR:
+   OTI n = TOV + (ETR - TOV) x n/4, with a missing TOV treated as zero, exactly as the sheet does.
+   Those cells are formulas, so a workbook saved without cached values arrives with them blank.
+   Rebuilding them here keeps track status working instead of letting it vanish silently. */
+function deriveOTI(st){
+  if(st.ETR.mark==null) return false;
+  const base = st.TOV.mark==null ? 0 : st.TOV.mark;
+  const step = (st.ETR.mark - base)/4;
+  let did=false;
+  ['OTI1','OTI2','OTI3'].forEach((k,i)=>{
+    if(st[k] && st[k].mark!=null) return;
+    const m = Math.round((base + step*(i+1))*100)/100;
+    st[k] = {mark:m, grade:gradeOf(m), status:null, derived:true};
+    did=true;
+  });
+  return did;
+}
+function normalise(s){
+  s.profile = s.profile||{};
+  s.students = (s.students||[]).map(st=>{
+    STAGES.forEach(sg=>{ if(!st[sg.k]) st[sg.k]={mark:null,grade:null,status:null}; });
+    deriveOTI(st);
+    STAGES.forEach(sg=>{
+      const k=sg.k;
+      if(!st[k]) st[k]={mark:null,grade:null,status:null};
+      if(st[k].mark!==null && st[k].mark!==undefined && !st[k].grade) st[k].grade = gradeOf(st[k].mark);
+      if(st[k].mark===null||st[k].mark===undefined){ st[k].grade=null; st[k].status=null; }
+    });
+    CHECKPTS.forEach(c=>{ st[c.a].status = statusOf(st[c.a].mark, st[c.t].mark); });
+    return st;
+  });
+  s.history = s.history||[]; s.targets = s.targets||[]; s.demographics = s.demographics||[]; s.kelompok = s.kelompok||[];
+  return s;
+}
+const school = () => DB.schools[CUR];
+
+/* ---- chart defaults ---- */
+Chart.defaults.font.family = "'Public Sans',system-ui,sans-serif";
+Chart.defaults.font.size = 11.5;
+Chart.defaults.color = '#7386A0';
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+Chart.defaults.plugins.legend.labels.boxHeight = 10;
+Chart.defaults.plugins.legend.labels.usePointStyle = false;
+Chart.defaults.plugins.legend.labels.padding = 12;
+Chart.defaults.plugins.tooltip.backgroundColor = '#0E1A26';
+Chart.defaults.plugins.tooltip.padding = 10;
+Chart.defaults.plugins.tooltip.cornerRadius = 6;
+Chart.defaults.plugins.tooltip.titleFont = {weight:'600',size:12};
+Chart.defaults.plugins.tooltip.bodyFont = {size:12};
+Chart.defaults.maintainAspectRatio = false;
+const GRIDX = {grid:{display:false},ticks:{color:'#7386A0'},border:{color:'#E3E9F0'}};
+const GRIDY = {grid:{color:'#EEF2F6'},ticks:{color:'#7386A0'},border:{display:false}};
+
+function draw(id, cfg){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(CHARTS[id]) CHARTS[id].destroy();
+  CHARTS[id] = new Chart(el.getContext('2d'), cfg);
+}
+function killCharts(){ Object.keys(CHARTS).forEach(k=>{ try{CHARTS[k].destroy();}catch(e){} delete CHARTS[k]; }); }
+
+/* ---- markup helpers ---- */
+function card(title, what, bodyHTML, noteHTML, extra){
+  return `<div class="card">
+    <div class="card-head"><div class="card-title">${title}</div>${what?`<div class="card-what">${what}</div>`:''}</div>
+    <div class="card-body ${extra||''}">${bodyHTML}</div>
+    ${noteHTML?`<div class="note"><span class="nl">Reading this</span>${noteHTML}</div>`:''}
+  </div>`;
+}
+function kpi(label, value, unit, detail, tone){
+  return `<div class="kpi ${tone?'k-'+tone:''}">
+    <div class="kpi-l">${label}</div>
+    <div class="kpi-v">${value}${unit?`<small> ${unit}</small>`:''}</div>
+    ${detail?`<div class="kpi-d">${detail}</div>`:''}
+  </div>`;
+}
+function delta(v, goodIsDown, digits){
+  if(v===null||v===undefined||isNaN(v)) return '<span class="delta flat">—</span>';
+  const d = Number(v).toFixed(digits===undefined?2:digits);
+  if(Math.abs(v) < 0.005) return `<span class="delta flat">no change</span>`;
+  const good = goodIsDown ? v<0 : v>0;
+  return `<span class="delta ${good?'up':'down'}">${v>0?'+':''}${d}</span>`;
+}
+function gchip(g){ return g? `<span class="gr" style="background:${GCOL[g]}">${esc(g)}</span>` : `<span class="gr na">—</span>`; }
+function schip(s){ return s? `<span class="st st-${s}">${s}</span>` : `<span class="st st-na">—</span>`; }
+function gradeLegend(){
+  return `<div class="legend">${GRADES.map(g=>`<span><i style="background:${GCOL[g]}"></i>${g}</span>`).join('')}
+    <span style="color:var(--muted)">Grade scale — left is strongest</span></div>`;
+}
+function trackLegend(){
+  return `<div class="legend">${Object.keys(TCOL).map(k=>`<span><i style="background:${TCOL[k]}"></i>${k} — ${TNAME[k]}</span>`).join('')}</div>`;
+}
+
+/* ============================================================
+   PAGE 01 — OVERVIEW
+   ============================================================ */
+function renderOverview(){
+  const S = school(), st = S.students;
+  const tov = stageStats(st,'TOV'), etr = stageStats(st,'ETR'), last = latestActual(st);
+  const lastMeta = STAGES.find(x=>x.k===last.stage);
+  const chk = latestCheckpoint(st);
+  const gapNow = (last.gpmp!==null && etr.gpmp!==null) ? last.gpmp - etr.gpmp : null;
+  const moved  = (last.gpmp!==null && tov.gpmp!==null) ? last.gpmp - tov.gpmp : null;
+  const needed = (tov.gpmp!==null && etr.gpmp!==null) ? tov.gpmp - etr.gpmp : null;
+  const progress = (needed && needed!==0) ? (-moved)/needed : null;
+  const hist = S.history.filter(h=>h.cal);
+  const lastSPM = hist[hist.length-1];
+
+  const risk = st.filter(s=>{
+    const c = chk ? s[chk.a].status : null;
+    return c==='FfT' || c==='OfT';
+  });
+  const failNow = st.filter(s=> s[last.stage] && s[last.stage].grade==='G');
+
+  let html = `<div class="page-head">
+    <div class="eyebrow">${esc(S.profile.level||'')} &middot; ${esc(String(S.profile.year||''))}</div>
+    <h1>${esc(titleCase(S.profile.school||'School'))}</h1>
+    <p class="lede">Headcount position for <b>${esc(S.profile.subject||'')}</b>. Every figure below is derived from the ${st.length} student records in the source workbook — nothing is estimated.</p>
+  </div>`;
+
+  html += `<div class="grid g4" style="margin-bottom:16px">
+    ${kpi('Cohort', st.length, 'students', `${esc(S.profile.level||'')} sitting SPM ${esc(String(S.profile.year||''))}`)}
+    ${kpi('GPMP now &middot; '+esc(lastMeta.label), num(last.gpmp), '', `${delta(gapNow,true)} against ETR ${num(etr.gpmp)} &middot; lower is better`, gapNow===null?'':(gapNow<=0?'good':(gapNow<0.5?'warn':'bad')))}
+    ${kpi('Pass rate &middot; '+esc(lastMeta.label), pct(last.passPct), '', `${last.pass} of ${last.n} at grade E or better`, last.passPct>=0.9?'good':(last.passPct>=0.6?'warn':'bad'))}
+    ${kpi('Needs intervention', risk.length, 'students', chk?`Off or far from track at ${esc(STAGES.find(x=>x.k===chk.a).label)}`:'No checkpoint scored yet', risk.length===0?'good':(risk.length<=5?'warn':'bad'))}
+  </div>`;
+
+  // headline narrative
+  let nar = [];
+  if(moved!==null) nar.push(`GPMP has moved from <b>${num(tov.gpmp)}</b> at TOV to <b>${num(last.gpmp)}</b> at ${lastMeta.label}, a change of <b>${moved>0?'+':''}${num(moved)}</b> — ${moved<0?'an improvement, because a lower GPMP means better grades':'a decline, because a higher GPMP means weaker grades'}.`);
+  if(progress!==null) nar.push(`The panel committed to an ETR of <b>${num(etr.gpmp)}</b>. That asks for a total gain of ${num(needed)} points from TOV, and <b>${(progress*100).toFixed(0)}%</b> of that distance has been covered so far.`);
+  if(lastSPM) nar.push(`For context, the actual SPM ${esc(lastSPM.label.replace('SPM ',''))} result was GPMP ${num(lastSPM.gpmp)} with a ${pct(lastSPM.lulus.pct)} pass rate.`);
+  if(failNow.length) nar.push(`<b>${failNow.length}</b> students currently sit at grade G. They are the single largest lever on GPMP: each one lifted to grade E moves the subject GPMP by ${num(1/st.length,3)} points.`);
+
+  html += card('Where this subject stands',
+    'A plain-language summary of the numbers above.',
+    `<div style="font-size:14px;line-height:1.7;color:var(--ink-2)">${nar.map(n=>`<p style="margin-bottom:9px">${n}</p>`).join('')}</div>`);
+
+  // checkpoint rail
+  html += card('The headcount cycle at a glance',
+    'GPMP at every target and every real assessment, in the order they happen. Targets are shaded; the ETR is the commitment at the end.',
+    `<div class="cprail">${STAGES.map(sg=>{
+      const s = stageStats(st, sg.k);
+      const cls = sg.kind==='goal'?'goal':(sg.kind==='target'?'target':'');
+      const kindLbl = sg.kind==='target'?'<em>target</em>':(sg.kind==='goal'?'<em>goal</em>':'actual');
+      return `<div class="cp ${cls}">
+        <div class="cp-k">${esc(sg.label)} · ${kindLbl}</div>
+        <div class="cp-v ${s.gpmp===null?'dim':''}">${s.gpmp===null?'—':num(s.gpmp)}</div>
+        <div class="cp-s">${s.n?`${s.pass}/${s.n} pass`:'not scored yet'}</div>
+      </div>`;
+    }).join('')}</div>`,
+    `The three OTI values are the interim targets the panel set. Each is paired with the assessment that follows it: <b>OTI 1 with UP 1</b>, <b>OTI 2 with PPT</b>, <b>OTI 3 with PPC</b>. Compare each actual against the target directly above it in sequence — that comparison is what produces the track status on page 04.`,
+    'flush');
+
+  // GPMP journey chart
+  html += card('GPMP journey — targets against reality',
+    'The y-axis is reversed so that upward always means better. GPMP counts grade points (A+ = 0 … G = 9), so a lower number is a stronger cohort.',
+    `<div class="chart-wrap h320"><canvas id="cGpmpJourney"></canvas></div>`,
+    gpmpNote(st));
+
+  // grade mix now
+  html += card('Grade mix, TOV to now',
+    'How the whole cohort is spread across the ten SPM grades at each stage of the cycle.',
+    `<div class="chart-wrap h380"><canvas id="cMixOverview"></canvas></div>`,
+    mixNote(st));
+
+  // risk table
+  if(chk){
+    html += `<div class="card">
+      <div class="card-head"><div class="card-title">Students to act on first</div>
+      <div class="card-what">Off Track and Far from Track at ${esc(STAGES.find(x=>x.k===chk.a).label)}, worst gap first. These are the students whose current mark is furthest below the target set for them.</div></div>
+      <div class="tbl-scroll"><table><thead><tr>
+        <th>Student</th><th>Status</th><th>${esc(STAGES.find(x=>x.k===chk.t).label)} target</th><th>${esc(STAGES.find(x=>x.k===chk.a).label)} mark</th><th>Gap</th><th>Grade now</th><th>ETR grade</th>
+      </tr></thead><tbody>${
+        risk.map(s=>({s,gap:(s[chk.a].mark??0)-(s[chk.t].mark??0)}))
+            .sort((a,b)=>a.gap-b.gap)
+            .map(({s,gap})=>`<tr data-student="${esc(s.name)}" style="cursor:pointer">
+              <td class="name-cell">${esc(titleCase(s.name))}</td>
+              <td>${schip(s[chk.a].status)}</td>
+              <td class="num">${num(s[chk.t].mark,1)}</td>
+              <td class="num">${num(s[chk.a].mark,1)}</td>
+              <td class="num" style="color:var(--bad);font-weight:600">${num(gap,1)}</td>
+              <td>${gchip(s[chk.a].grade)}</td>
+              <td>${gchip(s.ETR.grade)}</td>
+            </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">Every student is on or beyond target at this checkpoint.</td></tr>`
+      }</tbody></table></div>
+      <div class="note"><span class="nl">Reading this</span>Gap is the student's mark minus their target. A gap of −20 or worse is Far from Track and normally needs a different approach, not more of the same. Click any row for that student's full record.</div>
+    </div>`;
+  }
+
+  $('#p-overview').innerHTML = html;
+
+  // charts
+  drawGpmpJourney('cGpmpJourney', st);
+  drawMix('cMixOverview', st, STAGES.map(s=>s.k));
+  wireStudentRows('#p-overview');
+}
+
+function gpmpNote(st){
+  const tov=stageStats(st,'TOV').gpmp, etr=stageStats(st,'ETR').gpmp;
+  const rows = CHECKPTS.map(c=>{
+    const a=stageStats(st,c.a), t=stageStats(st,c.t);
+    if(a.n===0) return null;
+    const d = a.gpmp - t.gpmp;
+    return `<li><b>${STAGES.find(x=>x.k===c.a).label}</b> came in at ${num(a.gpmp)} against a target of ${num(t.gpmp)} — ${d<=0?`<b>ahead of target</b> by ${num(Math.abs(d))}`:`<b>behind target</b> by ${num(d)}`}.</li>`;
+  }).filter(Boolean);
+  const pend = CHECKPTS.filter(c=>stageStats(st,c.a).n===0).map(c=>STAGES.find(x=>x.k===c.a).label);
+  return `Start point TOV <b>${num(tov)}</b>, commitment ETR <b>${num(etr)}</b> — the cohort has to gain <b>${num(tov-etr)}</b> grade points over the year.
+    <ul>${rows.join('')}</ul>
+    ${pend.length?`<p style="margin-top:7px">${pend.join(' and ')} ${pend.length>1?'have':'has'} no marks yet, so ${pend.length>1?'those points':'that point'} sits empty on the line.</p>`:''}`;
+}
+function mixNote(st){
+  const tov=stageStats(st,'TOV'), last=latestActual(st), etr=stageStats(st,'ETR');
+  const dG = last.counts.G - tov.counts.G;
+  const top = g => GRADES.slice(0,3).reduce((a,x)=>a+g.counts[x],0);
+  return `At TOV, <b>${tov.counts.G}</b> of ${tov.n} students were at grade G. At ${esc(STAGES.find(x=>x.k===last.stage).label)} that figure is <b>${last.counts.G}</b> — ${dG===0?'unchanged':(dG<0?`<b>${Math.abs(dG)} fewer</b>`:`<b>${dG} more</b>`)}.
+    The ETR asks for <b>${etr.counts.G}</b> at grade G and <b>${etr.counts.D+etr.counts.E}</b> in the D–E band, which is where most of the planned gain sits.
+    Top-band (A+/A/A−) students number <b>${top(tov)}</b> at TOV, <b>${top(last)}</b> now, and <b>${top(etr)}</b> in the target.`;
+}
+
+/* ============================================================
+   SHARED CHART BUILDERS
+   ============================================================ */
+function drawGpmpJourney(id, st){
+  const labels = STAGES.map(s=>s.label);
+  const actualPts = STAGES.map(s=>{ const x=stageStats(st,s.k); return (s.kind==='actual'&&x.n)?x.gpmp:null; });
+  const targetPts = STAGES.map(s=>{ const x=stageStats(st,s.k); return (s.kind!=='actual')?x.gpmp:null; });
+  const etrVal = stageStats(st,'ETR').gpmp;
+  draw(id,{type:'line',data:{labels,datasets:[
+    {label:'Target (OTI / ETR)',data:targetPts,borderColor:'#7386A0',backgroundColor:'#7386A0',borderDash:[5,4],borderWidth:2,pointRadius:5,pointStyle:'rectRot',spanGaps:true,tension:0},
+    {label:'Actual assessment',data:actualPts,borderColor:'#0F5C6B',backgroundColor:'#0F5C6B',borderWidth:2.5,pointRadius:5,spanGaps:true,tension:.25},
+    {label:'ETR line',data:labels.map(()=>etrVal),borderColor:'#A8324A',borderWidth:1.5,borderDash:[2,4],pointRadius:0,fill:false}
+  ]},options:{
+    scales:{x:GRIDX,y:Object.assign({reverse:true,title:{display:true,text:'GPMP  (0 = all A+, 9 = all G)  ▲ better'}},GRIDY)},
+    plugins:{tooltip:{callbacks:{label:c=>c.parsed.y===null?null:`${c.dataset.label}: ${c.parsed.y.toFixed(2)}`}}}
+  }});
+}
+function drawMix(id, st, keys, horizontal){
+  const stages = keys.map(k=>STAGES.find(s=>s.k===k)).filter(Boolean);
+  const stats  = stages.map(s=>stageStats(st,s.k));
+  draw(id,{type:'bar',data:{
+    labels: stages.map(s=>s.label),
+    datasets: GRADES.map(g=>({label:g,data:stats.map(x=>x.counts[g]||0),backgroundColor:GCOL[g],borderWidth:0,borderRadius:1}))
+  },options:{
+    indexAxis: horizontal?'y':'x',
+    scales:{x:Object.assign({stacked:true},horizontal?GRIDY:GRIDX),y:Object.assign({stacked:true,title:{display:!horizontal,text:'Students'}},horizontal?GRIDX:GRIDY)},
+    plugins:{legend:{position:'bottom'},tooltip:{callbacks:{
+      label:c=>`${c.dataset.label}: ${c.parsed[horizontal?'x':'y']} student${c.parsed[horizontal?'x':'y']===1?'':'s'}`,
+      footer:items=>{const t=items.reduce((a,i)=>a+i.parsed[horizontal?'x':'y'],0);return 'Total scored: '+t;}
+    }}}
+  }});
+}
+
+/* ============================================================
+   PAGE 02 — TARGETS & PROGRESS
+   ============================================================ */
+function renderTargets(){
+  const S=school(), st=S.students;
+  const tov=stageStats(st,'TOV'), etr=stageStats(st,'ETR');
+  let html = `<div class="page-head">
+    <div class="eyebrow">02 &middot; Targets</div><h1>Targets &amp; progress</h1>
+    <p class="lede">TOV is where the cohort started. ETR is what the panel promised. The three OTI checkpoints are the staircase between them — each one is the mark a student must reach by a given assessment to still be on course.</p>
+  </div>`;
+
+  html += `<div class="grid g4" style="margin-bottom:16px">
+    ${kpi('TOV GPMP', num(tov.gpmp),'',`${tov.n} students carried a baseline mark`)}
+    ${kpi('ETR GPMP', num(etr.gpmp),'',`Gain required: ${num(tov.gpmp-etr.gpmp)} points`)}
+    ${kpi('TOV pass rate', pct(tov.passPct),'',`${tov.pass} of ${tov.n} at E or better`)}
+    ${kpi('ETR pass rate', pct(etr.passPct),'',`Target is ${etr.pass} of ${etr.n} passing`)}
+  </div>`;
+
+  html += card('Mean mark at every stage',
+    'The straight arithmetic average of student marks. Unlike GPMP this ignores grade boundaries, so it shows raw movement even when nobody crosses a boundary.',
+    `<div class="chart-wrap h300"><canvas id="cMeanStage"></canvas></div>`,
+    meanNote(st));
+
+  html += card('Pass rate and top-band share by stage',
+    'Two lines that answer two different questions: how many are clearing the pass line, and how many are reaching the strong grades.',
+    `<div class="chart-wrap h300"><canvas id="cPassStage"></canvas></div>`,
+    passNote(st));
+
+  html += card('Distance to ETR, student by student',
+    'Each bar is one student: their latest real mark minus the mark their ETR grade requires. Bars below the line are students not yet at their own target.',
+    `<div class="chart-wrap h460"><canvas id="cEtrGap"></canvas></div>`,
+    etrGapNote(st));
+
+  html += `<div class="card">
+    <div class="card-head"><div class="card-title">Stage-by-stage table</div>
+    <div class="card-what">Everything the workbook records for each stage, with grade counts, pass counts and GPMP side by side.</div></div>
+    <div class="tbl-scroll"><table><thead><tr><th>Stage</th><th>Kind</th><th>Scored</th>${GRADES.map(g=>`<th>${g}</th>`).join('')}<th>Pass</th><th>Pass %</th><th>Mean</th><th>GPMP</th></tr></thead>
+    <tbody>${STAGES.map(sg=>{
+      const x=stageStats(st,sg.k);
+      return `<tr><td style="font-weight:600">${esc(sg.label)}</td>
+        <td style="text-align:left;color:var(--muted);font-size:12px">${sg.kind}</td>
+        <td class="num">${x.n||'—'}</td>
+        ${GRADES.map(g=>`<td class="num" style="${x.counts[g]?'':'color:var(--line-2)'}">${x.n?x.counts[g]:'—'}</td>`).join('')}
+        <td class="num">${x.n?x.pass:'—'}</td><td class="num">${x.n?pct(x.passPct):'—'}</td>
+        <td class="num">${num(x.mean,1)}</td><td class="num" style="font-weight:600">${num(x.gpmp)}</td></tr>`;
+    }).join('')}</tbody></table></div>
+    ${gradeLegend()}
+  </div>`;
+
+  $('#p-targets').innerHTML = html;
+  drawMeanStage('cMeanStage', st);
+  drawPassStage('cPassStage', st);
+  drawEtrGap('cEtrGap', st);
+}
+function meanNote(st){
+  const seq = ACTUALS.map(k=>({k,x:stageStats(st,k)})).filter(o=>o.x.n);
+  if(seq.length<2) return 'Only one assessment has marks so far, so there is no movement to read yet.';
+  const first=seq[0], last=seq[seq.length-1];
+  const d = last.x.mean-first.x.mean;
+  return `Mean mark moved from <b>${num(first.x.mean,1)}</b> at ${esc(STAGES.find(s=>s.k===first.k).label)} to <b>${num(last.x.mean,1)}</b> at ${esc(STAGES.find(s=>s.k===last.k).label)}, ${d>=0?`a gain of <b>${num(d,1)}</b> marks`:`a drop of <b>${num(Math.abs(d),1)}</b> marks`}.
+    Spread at ${esc(STAGES.find(s=>s.k===last.k).label)} runs from <b>${num(last.x.min,0)}</b> to <b>${num(last.x.max,0)}</b> — a ${num(last.x.max-last.x.min,0)}-mark range, which is what makes a single whole-class strategy hard to pitch.`;
+}
+function passNote(st){
+  const seq = ACTUALS.map(k=>({k,x:stageStats(st,k)})).filter(o=>o.x.n);
+  const etr = stageStats(st,'ETR');
+  const last = seq[seq.length-1];
+  const top = x=>GRADES.slice(0,3).reduce((a,g)=>a+x.counts[g],0);
+  return `At ${esc(STAGES.find(s=>s.k===last.k).label)} the pass rate is <b>${pct(last.x.passPct)}</b> against an ETR of <b>${pct(etr.passPct)}</b> — a shortfall of <b>${etr.pass-last.x.pass}</b> students who still need to clear grade E.
+    Top-band share is <b>${(top(last.x)/last.x.n*100).toFixed(1)}%</b> now against <b>${(top(etr)/etr.n*100).toFixed(1)}%</b> targeted. Pass rate and top-band rarely move together: pushing G students to E lifts the first line and leaves the second flat.`;
+}
+function etrGapNote(st){
+  const last=latestActual(st);
+  const gaps = st.map(s=>({n:s.name,g:(s[last.stage].mark!=null&&s.ETR.mark!=null)?s[last.stage].mark-s.ETR.mark:null})).filter(o=>o.g!==null);
+  const behind = gaps.filter(o=>o.g<0), ahead = gaps.filter(o=>o.g>=0);
+  const worst = gaps.slice().sort((a,b)=>a.g-b.g).slice(0,3);
+  const med = behind.length? behind.map(o=>-o.g).sort((a,b)=>a-b)[Math.floor(behind.length/2)] : 0;
+  return `<b>${ahead.length}</b> students are already at or above their ETR mark; <b>${behind.length}</b> are below it.
+    The typical shortfall among those behind is <b>${num(med,0)}</b> marks.
+    Furthest behind: ${worst.map(w=>`${esc(titleCase(w.n))} (${num(w.g,0)})`).join(', ')}.
+    <p style="margin-top:6px">A shortfall under about 5 marks is usually closable with revision; beyond 15 marks the ETR grade itself may need review with the panel.</p>`;
+}
+function drawMeanStage(id, st){
+  const stages = STAGES.filter(s=>stageStats(st,s.k).n>0);
+  draw(id,{type:'bar',data:{labels:stages.map(s=>s.label),datasets:[{
+    label:'Mean mark',
+    data:stages.map(s=>stageStats(st,s.k).mean),
+    backgroundColor:stages.map(s=>s.kind==='actual'?'#0F5C6B':(s.kind==='goal'?'#A8324A':'#B7C4D3')),
+    borderRadius:3,borderWidth:0
+  }]},options:{
+    scales:{x:GRIDX,y:Object.assign({beginAtZero:true,max:100,title:{display:true,text:'Mean mark out of 100'}},GRIDY)},
+    plugins:{legend:{display:false},tooltip:{callbacks:{
+      label:c=>`Mean ${c.parsed.y.toFixed(1)}`,
+      afterLabel:c=>{const s=stageStats(st,stages[c.dataIndex].k);return `Range ${s.min}–${s.max} · ${s.n} scored`;}
+    }}}
+  }});
+}
+function drawPassStage(id, st){
+  const stages = STAGES.filter(s=>stageStats(st,s.k).n>0);
+  const top = x=>GRADES.slice(0,3).reduce((a,g)=>a+x.counts[g],0);
+  draw(id,{type:'line',data:{labels:stages.map(s=>s.label),datasets:[
+    {label:'Pass rate (E or better)',data:stages.map(s=>{const x=stageStats(st,s.k);return x.passPct*100;}),borderColor:'#0F5C6B',backgroundColor:'rgba(15,92,107,.08)',fill:true,borderWidth:2.5,pointRadius:4,tension:.25},
+    {label:'Top band share (A+/A/A−)',data:stages.map(s=>{const x=stageStats(st,s.k);return top(x)/x.n*100;}),borderColor:'#C98A1B',borderWidth:2.5,pointRadius:4,tension:.25}
+  ]},options:{
+    scales:{x:GRIDX,y:Object.assign({beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}},GRIDY)},
+    plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}%`}}}
+  }});
+}
+function drawEtrGap(id, st){
+  const last = latestActual(st);
+  const rows = st.map(s=>({name:s.name,gap:(s[last.stage].mark!=null&&s.ETR.mark!=null)?s[last.stage].mark-s.ETR.mark:null}))
+                 .filter(r=>r.gap!==null).sort((a,b)=>a.gap-b.gap);
+  draw(id,{type:'bar',data:{labels:rows.map(r=>titleCase(r.name).split(' ').slice(0,2).join(' ')),datasets:[{
+    label:'Marks above/below ETR',data:rows.map(r=>r.gap),
+    backgroundColor:rows.map(r=>r.gap>=0?'#18866B':(r.gap>=-8?'#2C6F9B':(r.gap>=-19?'#C98A1B':'#A8324A'))),
+    borderRadius:2,borderWidth:0
+  }]},options:{
+    indexAxis:'y',
+    scales:{x:Object.assign({title:{display:true,text:'Marks relative to that student\u2019s ETR'}},GRIDY),y:Object.assign({ticks:{font:{size:9.5},autoSkip:false}},GRIDX)},
+    plugins:{legend:{display:false},tooltip:{callbacks:{
+      title:items=>titleCase(rows[items[0].dataIndex].name),
+      label:c=>`${c.parsed.x>0?'+':''}${c.parsed.x.toFixed(1)} marks vs ETR`
+    }}}
+  }});
+}
+
+/* ============================================================
+   PAGE 03 — GRADE MOVEMENT
+   ============================================================ */
+function renderGrades(){
+  const S=school(), st=S.students;
+  const tov=stageStats(st,'TOV'), last=latestActual(st), etr=stageStats(st,'ETR');
+  const lastLbl = STAGES.find(s=>s.k===last.stage).label;
+
+  let html = `<div class="page-head"><div class="eyebrow">03 &middot; Grades</div><h1>Grade movement</h1>
+    <p class="lede">Where students actually sit on the ten-grade SPM scale, how that has shifted since TOV, and how far it is from the ETR shape the panel is aiming for.</p></div>`;
+
+  html += card('Grade distribution at every stage',
+    'Stacked bars, one per stage. Read the height of each colour band, not the total, to see a grade grow or shrink.',
+    `<div class="chart-wrap h380"><canvas id="cMixAll"></canvas></div>`,
+    mixNote(st), 'flush');
+
+  html += `<div class="grid g2">
+    ${card('TOV vs now vs ETR, grade by grade',
+      'Three bars per grade — start point, current position, and target. Where the middle bar has not yet reached the right-hand bar, that grade still owes movement.',
+      `<div class="chart-wrap h320"><canvas id="cThreeWay"></canvas></div>`,
+      threeWayNote(st))}
+    ${card('Where the marks actually cluster',
+      `Every student's ${esc(lastLbl)} mark, bucketed into the SPM grade bands. Tall bars at the left of the scale are the students carrying the GPMP.`,
+      `<div class="chart-wrap h320"><canvas id="cHisto"></canvas></div>`,
+      histoNote(st))}
+  </div>`;
+
+  html += card('Grade change per student, TOV to '+esc(lastLbl),
+    'How many grade steps each student has moved. One step is one band on the scale, for example C to C+.',
+    `<div class="chart-wrap h300"><canvas id="cSteps"></canvas></div>`,
+    stepsNote(st));
+
+  $('#p-grades').innerHTML = html;
+  drawMix('cMixAll', st, STAGES.map(s=>s.k));
+  drawThreeWay('cThreeWay', st);
+  drawHisto('cHisto', st);
+  drawSteps('cSteps', st);
+}
+function threeWayNote(st){
+  const tov=stageStats(st,'TOV'), last=latestActual(st), etr=stageStats(st,'ETR');
+  const rows = GRADES.map(g=>({g,d:etr.counts[g]-last.counts[g]})).filter(r=>r.d!==0);
+  const grow = rows.filter(r=>r.d>0).sort((a,b)=>b.d-a.d).slice(0,3);
+  const shrink = rows.filter(r=>r.d<0).sort((a,b)=>a.d-b.d).slice(0,3);
+  return `To land the ETR, the cohort has to <b>grow</b> ${grow.map(r=>`${r.g} by ${r.d}`).join(', ')||'nothing'} and <b>shrink</b> ${shrink.map(r=>`${r.g} by ${Math.abs(r.d)}`).join(', ')||'nothing'}.
+    The largest single move is ${rows.sort((a,b)=>Math.abs(b.d)-Math.abs(a.d))[0] ? `<b>${rows[0].g}</b> (${rows[0].d>0?'+':''}${rows[0].d} students)` : 'none'}.`;
+}
+function histoNote(st){
+  const last=latestActual(st);
+  const lbl = STAGES.find(s=>s.k===last.stage).label;
+  const mode = GRADES.reduce((a,g)=>last.counts[g]>last.counts[a]?g:a,'A+');
+  const below40 = last.marks.filter(m=>m<40).length;
+  const near = last.marks.filter(m=>m>=35&&m<40).length;
+  return `The most common grade at ${esc(lbl)} is <b>${mode}</b> with ${last.counts[mode]} students. <b>${below40}</b> students sit below the 40-mark pass line.
+    Of those, <b>${near}</b> are between 35 and 39 — within five marks of a pass, which is normally the cheapest gain available to a panel.`;
+}
+function stepsNote(st){
+  const last=latestActual(st);
+  const moves = st.map(s=>{
+    if(!s.TOV.grade||!s[last.stage].grade) return null;
+    return GP[s.TOV.grade]-GP[s[last.stage].grade];   // positive = improved
+  }).filter(v=>v!==null);
+  const up = moves.filter(v=>v>0).length, flat = moves.filter(v=>v===0).length, down = moves.filter(v=>v<0).length;
+  return `<b>${up}</b> students improved by at least one grade band since TOV, <b>${flat}</b> held their grade, and <b>${down}</b> dropped.
+    A student can gain marks and still show zero movement here if they stayed inside the same band — check the mean-mark chart on page 02 alongside this one before concluding a class has stalled.`;
+}
+function drawThreeWay(id, st){
+  const tov=stageStats(st,'TOV'), last=latestActual(st), etr=stageStats(st,'ETR');
+  const lastLbl = STAGES.find(s=>s.k===last.stage).label;
+  draw(id,{type:'bar',data:{labels:GRADES,datasets:[
+    {label:'TOV',data:GRADES.map(g=>tov.counts[g]),backgroundColor:'#B7C4D3',borderRadius:2},
+    {label:lastLbl+' (now)',data:GRADES.map(g=>last.counts[g]),backgroundColor:'#0F5C6B',borderRadius:2},
+    {label:'ETR (target)',data:GRADES.map(g=>etr.counts[g]),backgroundColor:'#C98A1B',borderRadius:2}
+  ]},options:{scales:{x:GRIDX,y:Object.assign({beginAtZero:true,title:{display:true,text:'Students'}},GRIDY)},
+    plugins:{legend:{position:'bottom'}}}});
+}
+function drawHisto(id, st){
+  const last=latestActual(st);
+  const bands = CUTS.slice().reverse(); // low → high
+  const labels = bands.map(([c,g],i)=>{const hi = i<bands.length-1? bands[i+1][0]-1 : 100; return `${g} (${c}–${hi})`;});
+  const data = bands.map(([c,g],i)=>{const hi = i<bands.length-1? bands[i+1][0] : 101; return last.marks.filter(m=>m>=c&&m<hi).length;});
+  draw(id,{type:'bar',data:{labels,datasets:[{label:'Students',data,backgroundColor:bands.map(([c,g])=>GCOL[g]),borderRadius:2}]},
+    options:{scales:{x:Object.assign({ticks:{font:{size:9.5},maxRotation:60,minRotation:45}},GRIDX),
+      y:Object.assign({beginAtZero:true,title:{display:true,text:'Students'}},GRIDY)},
+      plugins:{legend:{display:false}}}});
+}
+function drawSteps(id, st){
+  const last=latestActual(st);
+  const buckets = {};
+  st.forEach(s=>{ if(!s.TOV.grade||!s[last.stage].grade) return;
+    const v = GP[s.TOV.grade]-GP[s[last.stage].grade];
+    buckets[v]=(buckets[v]||0)+1; });
+  const keys = Object.keys(buckets).map(Number).sort((a,b)=>a-b);
+  draw(id,{type:'bar',data:{labels:keys.map(k=>k===0?'no change':(k>0?`+${k} band${k>1?'s':''} better`:`${Math.abs(k)} band${Math.abs(k)>1?'s':''} worse`)),
+    datasets:[{label:'Students',data:keys.map(k=>buckets[k]),backgroundColor:keys.map(k=>k>0?'#18866B':(k===0?'#B7C4D3':'#A8324A')),borderRadius:3}]},
+    options:{scales:{x:GRIDX,y:Object.assign({beginAtZero:true,title:{display:true,text:'Students'}},GRIDY)},plugins:{legend:{display:false}}}});
+}
+
+/* ============================================================
+   PAGE 04 — TRACK STATUS
+   ============================================================ */
+function renderTrack(){
+  const S=school(), st=S.students;
+  const scored = CHECKPTS.filter(c=>trackCounts(st,c).n>0);
+  let html = `<div class="page-head"><div class="eyebrow">04 &middot; Track</div><h1>Track status</h1>
+    <p class="lede">At each checkpoint every student's real mark is compared with the OTI target set for them. The difference produces one of four labels. This is the workbook's own rule, applied here exactly as written.</p></div>`;
+
+  html += `<div class="grid g4" style="margin-bottom:16px">${Object.keys(TCOL).map(k=>{
+    const last = latestCheckpoint(st);
+    const n = last? last.counts[k] : 0;
+    const tot = last? last.n : 0;
+    return `<div class="kpi" style="--accent:${TCOL[k]}">
+      <div class="kpi-l" style="color:${TCOL[k]}">${k} — ${TNAME[k]}</div>
+      <div class="kpi-v">${n}<small> / ${tot}</small></div>
+      <div class="kpi-d">${TDESC[k]}</div></div>`;
+  }).join('')}</div>`;
+
+  if(!scored.length){
+    html += `<div class="emptybox">No checkpoint has marks yet, so no track status can be calculated. Status appears once UP 1, PPT or PPC marks are entered.</div>`;
+    $('#p-track').innerHTML = html; return;
+  }
+
+  html += card('Track status at each checkpoint',
+    'One bar per checkpoint. Watch the crimson and amber sections — those are the students falling away from their own targets.',
+    `<div class="chart-wrap h280"><canvas id="cTrack"></canvas></div>`,
+    trackNote(st), 'flush');
+
+  html += card('How students moved between checkpoints',
+    'Each line follows one status group forward. A group that shrinks has handed students to another group — the table underneath names them.',
+    `<div class="chart-wrap h280"><canvas id="cTrackTrend"></canvas></div>`,
+    trackTrendNote(st));
+
+  const last = latestCheckpoint(st);
+  const prev = scored.length>1 ? scored[scored.length-2] : null;
+  if(prev){
+    const movers = st.map(s=>({s,from:s[prev.a].status,to:s[last.a].status}))
+      .filter(m=>m.from&&m.to&&m.from!==m.to);
+    const worse = ['BT','OnT','OfT','FfT'];
+    html += `<div class="card">
+      <div class="card-head"><div class="card-title">Students who changed status</div>
+      <div class="card-what">Between ${esc(STAGES.find(x=>x.k===prev.a).label)} and ${esc(STAGES.find(x=>x.k===last.a).label)}. Declines are listed first.</div></div>
+      <div class="tbl-scroll"><table><thead><tr><th>Student</th><th>${esc(STAGES.find(x=>x.k===prev.a).label)}</th><th>${esc(STAGES.find(x=>x.k===last.a).label)}</th><th>Direction</th><th>Mark change</th></tr></thead><tbody>${
+        movers.sort((a,b)=>(worse.indexOf(b.to)-worse.indexOf(b.from))-(worse.indexOf(a.to)-worse.indexOf(a.from)))
+        .map(m=>{
+          const dir = worse.indexOf(m.to)-worse.indexOf(m.from);
+          const dm = (m.s[last.a].mark??0)-(m.s[prev.a].mark??0);
+          return `<tr data-student="${esc(m.s.name)}" style="cursor:pointer"><td class="name-cell">${esc(titleCase(m.s.name))}</td>
+            <td>${schip(m.from)}</td><td>${schip(m.to)}</td>
+            <td style="color:${dir>0?'var(--bad)':'var(--good)'};font-weight:600">${dir>0?'declined':'improved'}</td>
+            <td class="num">${dm>0?'+':''}${num(dm,1)}</td></tr>`;
+        }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">Nobody changed status between these two checkpoints.</td></tr>`
+      }</tbody></table></div>${trackLegend()}</div>`;
+  }
+
+  html += `<div class="card"><div class="card-head"><div class="card-title">Full track register</div>
+    <div class="card-what">Every student, every checkpoint, with the target they were measured against.</div></div>
+    <div class="tbl-scroll"><table><thead><tr><th>Student</th>${scored.map(c=>`<th>${esc(STAGES.find(x=>x.k===c.t).label)}</th><th>${esc(STAGES.find(x=>x.k===c.a).label)}</th><th>Gap</th><th>Status</th>`).join('')}</tr></thead>
+    <tbody>${st.map(s=>`<tr data-student="${esc(s.name)}" style="cursor:pointer"><td class="name-cell">${esc(titleCase(s.name))}</td>${
+      scored.map(c=>{const g=(s[c.a].mark!=null&&s[c.t].mark!=null)?s[c.a].mark-s[c.t].mark:null;
+        return `<td class="num" style="color:var(--muted)">${num(s[c.t].mark,1)}</td><td class="num">${num(s[c.a].mark,1)}</td>
+        <td class="num" style="color:${g==null?'var(--muted)':(g>=0?'var(--good)':'var(--bad)')}">${g==null?'—':(g>0?'+':'')+num(g,1)}</td><td>${schip(s[c.a].status)}</td>`;
+      }).join('')}</tr>`).join('')}</tbody></table></div>${trackLegend()}</div>`;
+
+  $('#p-track').innerHTML = html;
+  drawTrack('cTrack', st, scored);
+  drawTrackTrend('cTrackTrend', st, scored);
+  wireStudentRows('#p-track');
+}
+function trackNote(st){
+  const last = latestCheckpoint(st);
+  const lbl = STAGES.find(x=>x.k===last.a).label;
+  const risk = last.counts.OfT+last.counts.FfT;
+  return `At <b>${esc(lbl)}</b>, <b>${last.counts.BT}</b> students are beyond target and <b>${last.counts.OnT}</b> are on track — together <b>${((last.counts.BT+last.counts.OnT)/last.n*100).toFixed(0)}%</b> of the cohort.
+    <b>${risk}</b> students are behind, of whom <b>${last.counts.FfT}</b> are 20 or more marks short.
+    <p style="margin-top:6px">A high BT count is not automatically good news: it can mean the OTI targets were set too low. Compare it against the ETR gap on page 02 before celebrating.</p>`;
+}
+function trackTrendNote(st){
+  const scored = CHECKPTS.filter(c=>trackCounts(st,c).n>0);
+  if(scored.length<2) return 'Only one checkpoint has marks, so there is no movement between checkpoints to read yet.';
+  const a=trackCounts(st,scored[0]).counts, b=trackCounts(st,scored[scored.length-1]).counts;
+  const parts = Object.keys(TCOL).map(k=>`<li><b>${k}</b>: ${a[k]} → ${b[k]} (${b[k]-a[k]>0?'+':''}${b[k]-a[k]})</li>`);
+  const risk0=a.OfT+a.FfT, risk1=b.OfT+b.FfT;
+  return `From ${esc(STAGES.find(x=>x.k===scored[0].a).label)} to ${esc(STAGES.find(x=>x.k===scored[scored.length-1].a).label)}:<ul>${parts.join('')}</ul>
+    <p style="margin-top:6px">The behind-target group went from <b>${risk0}</b> to <b>${risk1}</b> students — ${risk1<risk0?'the interventions are reaching people':(risk1>risk0?'the group is growing and the current approach is not holding':'no net change')}.</p>`;
+}
+function drawTrack(id, st, scored){
+  draw(id,{type:'bar',data:{labels:scored.map(c=>STAGES.find(x=>x.k===c.a).label+' vs '+STAGES.find(x=>x.k===c.t).label),
+    datasets:Object.keys(TCOL).map(k=>({label:`${k} — ${TNAME[k]}`,data:scored.map(c=>trackCounts(st,c).counts[k]),backgroundColor:TCOL[k],borderRadius:1}))},
+    options:{indexAxis:'y',scales:{x:Object.assign({stacked:true,title:{display:true,text:'Students'}},GRIDY),y:Object.assign({stacked:true},GRIDX)},
+      plugins:{legend:{position:'bottom'}}}});
+}
+function drawTrackTrend(id, st, scored){
+  draw(id,{type:'line',data:{labels:scored.map(c=>STAGES.find(x=>x.k===c.a).label),
+    datasets:Object.keys(TCOL).map(k=>({label:k,data:scored.map(c=>trackCounts(st,c).counts[k]),borderColor:TCOL[k],backgroundColor:TCOL[k],borderWidth:2.5,pointRadius:4,tension:.25}))},
+    options:{scales:{x:GRIDX,y:Object.assign({beginAtZero:true,title:{display:true,text:'Students'}},GRIDY)},plugins:{legend:{position:'bottom'}}}});
+}
+
+/* ============================================================
+   PAGE 05 — STUDENTS
+   ============================================================ */
+let SFILTER = {q:'',status:'',grade:'',kelompok:'',sort:'no',dir:1};
+function renderStudents(){
+  const S=school(), st=S.students, last=latestActual(st), chk=latestCheckpoint(st);
+  let html = `<div class="page-head"><div class="eyebrow">05 &middot; Students</div><h1>Student register</h1>
+    <p class="lede">The complete record for all ${st.length} students — every mark, every grade, every status the workbook holds. Search, filter, sort, and open any name for that student's own chart.</p></div>`;
+
+  html += `<div class="card">
+    <div class="toolbar">
+      <input type="search" id="sq" placeholder="Search by name" value="${esc(SFILTER.q)}">
+      <select id="sStatus"><option value="">All track statuses</option>${Object.keys(TCOL).map(k=>`<option value="${k}" ${SFILTER.status===k?'selected':''}>${k} — ${TNAME[k]}</option>`).join('')}</select>
+      <select id="sGrade"><option value="">All current grades</option>${GRADES.map(g=>`<option value="${g}" ${SFILTER.grade===g?'selected':''}>Grade ${g}</option>`).join('')}</select>
+      <select id="sKel"><option value="">All kelompok (by ETR)</option>${Object.keys(KELOMPOK).map(k=>`<option value="${k}" ${SFILTER.kelompok===k?'selected':''}>${titleCase(k)}</option>`).join('')}</select>
+      <span class="spacer"></span><span class="count" id="sCount"></span>
+      <button class="btn ghost" id="sExport">Export CSV</button>
+    </div>
+    <div class="tbl-scroll" id="sTable"></div>
+    ${gradeLegend()}${trackLegend()}
+    <div class="note"><span class="nl">Reading this</span>
+      <b>M</b> is the mark out of 100 and <b>G</b> is the grade it produces. Target columns (ETR, OTI 1–3) carry no status of their own — status belongs to the assessment measured against them.
+      A dash means the workbook has no value there, most often because the assessment has not happened yet.</div>
+  </div>`;
+  $('#p-students').innerHTML = html;
+  paintStudentTable();
+  $('#sq').oninput = e=>{SFILTER.q=e.target.value;paintStudentTable();};
+  $('#sStatus').onchange = e=>{SFILTER.status=e.target.value;paintStudentTable();};
+  $('#sGrade').onchange = e=>{SFILTER.grade=e.target.value;paintStudentTable();};
+  $('#sKel').onchange = e=>{SFILTER.kelompok=e.target.value;paintStudentTable();};
+  $('#sExport').onclick = exportCSV;
+}
+function filteredStudents(){
+  const st = school().students, last=latestActual(st), chk=latestCheckpoint(st);
+  let rows = st.filter(s=>{
+    if(SFILTER.q && !s.name.toLowerCase().includes(SFILTER.q.toLowerCase())) return false;
+    if(SFILTER.status){ const cur = chk? s[chk.a].status : null; if(cur!==SFILTER.status) return false; }
+    if(SFILTER.grade && s[last.stage].grade!==SFILTER.grade) return false;
+    if(SFILTER.kelompok && kelompokOf(s.ETR.grade)!==SFILTER.kelompok) return false;
+    return true;
+  });
+  const k = SFILTER.sort;
+  rows.sort((a,b)=>{
+    let va,vb;
+    if(k==='no'){va=a.no;vb=b.no;}
+    else if(k==='name'){va=a.name;vb=b.name;}
+    else if(k==='status'){const o=['FfT','OfT','OnT','BT'];va=o.indexOf(chk?a[chk.a].status:'');vb=o.indexOf(chk?b[chk.a].status:'');}
+    else {va=a[k]&&a[k].mark; vb=b[k]&&b[k].mark; va=(va==null?-1:va); vb=(vb==null?-1:vb);}
+    if(va<vb) return -1*SFILTER.dir; if(va>vb) return 1*SFILTER.dir; return 0;
+  });
+  return rows;
+}
+function paintStudentTable(){
+  const rows = filteredStudents(), st=school().students, chk=latestCheckpoint(st);
+  const cols = STAGES.map(s=>s.k);
+  const sc = k => `sortable ${SFILTER.sort===k?(SFILTER.dir===1?'asc':'desc'):''}`;
+  let h = `<table><thead><tr>
+    <th class="${sc('no')}" data-sort="no">#</th>
+    <th class="${sc('name')}" data-sort="name">Student</th>
+    ${cols.map(k=>`<th class="${sc(k)}" data-sort="${k}" colspan="2">${esc(STAGES.find(s=>s.k===k).label)}</th>`).join('')}
+    <th class="${sc('status')}" data-sort="status">Status now</th>
+    <th>Kelompok (ETR)</th></tr>
+    <tr><th></th><th></th>${cols.map(()=>`<th style="font-weight:500;color:var(--muted)">M</th><th style="font-weight:500;color:var(--muted)">G</th>`).join('')}<th></th><th></th></tr>
+  </thead><tbody>`;
+  rows.forEach(s=>{
+    h += `<tr data-student="${esc(s.name)}" style="cursor:pointer"><td class="num" style="color:var(--muted)">${s.no}</td>
+      <td class="name-cell">${esc(titleCase(s.name))}</td>
+      ${cols.map(k=>`<td class="num">${num(s[k].mark,1)}</td><td>${gchip(s[k].grade)}</td>`).join('')}
+      <td>${schip(chk?s[chk.a].status:null)}</td>
+      <td style="text-align:left;font-size:12px;color:var(--ink-2)">${esc(titleCase(kelompokOf(s.ETR.grade)||'—'))}</td></tr>`;
+  });
+  h += `</tbody></table>`;
+  $('#sTable').innerHTML = h;
+  $('#sCount').textContent = `${rows.length} of ${st.length} students`;
+  $$('#sTable th.sortable').forEach(th=>th.onclick=()=>{
+    const k = th.dataset.sort;
+    if(SFILTER.sort===k) SFILTER.dir*=-1; else {SFILTER.sort=k;SFILTER.dir=1;}
+    paintStudentTable();
+  });
+  wireStudentRows('#sTable');
+}
+function exportCSV(){
+  const rows = filteredStudents(), S=school(), chk=latestCheckpoint(S.students);
+  const head = ['No','Name',...STAGES.flatMap(s=>[s.label+' mark',s.label+' grade']),'Status now','Kelompok (ETR)'];
+  const body = rows.map(s=>[s.no,s.name,...STAGES.flatMap(g=>[s[g.k].mark??'',s[g.k].grade??'']),(chk?s[chk.a].status:'')||'',kelompokOf(s.ETR.grade)||'']);
+  const csv = [head,...body].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`headcount_${(S.profile.school||'school').replace(/\W+/g,'_').toLowerCase()}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function wireStudentRows(scope){
+  $$(scope+' tr[data-student]').forEach(tr=>tr.onclick=()=>openStudent(tr.dataset.student));
+}
+function openStudent(name){
+  const S=school(), s=S.students.find(x=>x.name===name);
+  if(!s) return;
+  const chk=latestCheckpoint(S.students);
+  $('#modalTitle').textContent = titleCase(s.name);
+  $('#modalSub').textContent = `#${s.no} · ${S.profile.subject||''} · ${S.profile.school||''}`;
+  const etrGap = (s.ETR.mark!=null) ? STAGES.filter(x=>x.kind==='actual').map(x=>s[x.k].mark).filter(m=>m!=null).slice(-1)[0] - s.ETR.mark : null;
+  $('#modalBody').innerHTML = `
+    <div class="grid g3" style="margin-bottom:14px">
+      ${kpi('TOV', num(s.TOV.mark,1),'', gchip(s.TOV.grade)+' baseline')}
+      ${kpi('ETR', num(s.ETR.mark,1),'', gchip(s.ETR.grade)+' target grade')}
+      ${kpi('Status now', chk?(s[chk.a].status||'—'):'—','', chk?`vs ${STAGES.find(x=>x.k===chk.t).label}`:'no checkpoint yet')}
+    </div>
+    <div class="chart-wrap" style="height:250px;margin-bottom:14px"><canvas id="cStudent"></canvas></div>
+    <div class="tbl-scroll"><table><thead><tr><th>Stage</th><th>Kind</th><th>Mark</th><th>Grade</th><th>Status</th></tr></thead><tbody>
+      ${STAGES.map(x=>`<tr><td style="font-weight:600">${esc(x.label)}</td><td style="text-align:left;color:var(--muted);font-size:12px">${x.kind}</td>
+        <td class="num">${num(s[x.k].mark,1)}</td><td>${gchip(s[x.k].grade)}</td><td>${x.vs?schip(s[x.k].status):'<span style="color:var(--line-2)">n/a</span>'}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="note" style="border:1px solid var(--line);border-radius:var(--r-sm);margin-top:12px">
+      <span class="nl">Reading this</span>
+      ${etrGap!=null?`Latest mark is <b>${etrGap>=0?'+':''}${num(etrGap,1)}</b> marks against this student's own ETR of ${num(s.ETR.mark,1)}.`:''}
+      ${s.TOV.mark==null?'<b>No TOV mark on file</b> — every comparison against baseline for this student is unavailable, and the OTI values computed from it should be treated as unreliable.':''}
+    </div>`;
+  $('#modal').classList.add('on');
+  const keys = STAGES.map(x=>x.k);
+  draw('cStudent',{type:'line',data:{labels:STAGES.map(x=>x.label),datasets:[
+    {label:'Actual',data:STAGES.map(x=>x.kind==='actual'?s[x.k].mark:null),borderColor:'#0F5C6B',backgroundColor:'#0F5C6B',borderWidth:2.5,pointRadius:5,spanGaps:true,tension:.25},
+    {label:'Target',data:STAGES.map(x=>x.kind!=='actual'?s[x.k].mark:null),borderColor:'#7386A0',borderDash:[5,4],borderWidth:2,pointRadius:5,pointStyle:'rectRot',spanGaps:true},
+    {label:'ETR line',data:STAGES.map(()=>s.ETR.mark),borderColor:'#A8324A',borderWidth:1.5,borderDash:[2,4],pointRadius:0}
+  ]},options:{scales:{x:GRIDX,y:Object.assign({min:0,max:100,title:{display:true,text:'Mark'}},GRIDY)},plugins:{legend:{position:'bottom'}}}});
+}
+
+/* ============================================================
+   PAGE 06 — KELOMPOK & BAU
+   ============================================================ */
+function renderKelompok(){
+  const S=school(), st=S.students;
+  const tov=stageStats(st,'TOV'), etr=stageStats(st,'ETR'), last=latestActual(st);
+  const K = Object.keys(KELOMPOK);
+  const band = (stat) => K.reduce((o,k)=>{o[k]=KELOMPOK[k].reduce((a,g)=>a+stat.counts[g],0);return o;},{});
+  const bt=band(tov), be=band(etr), bn=band(last);
+  const kel = S.kelompok||[];
+  const bau = kel.reduce((a,r)=>a+(r.bau||0),0);
+  const p5 = kel.reduce((a,r)=>a+(r.murid5PGP||0),0);
+
+  let html = `<div class="page-head"><div class="eyebrow">06 &middot; Kelompok</div><h1>Kelompok &amp; intervention</h1>
+    <p class="lede">Kelompok groups the ten grades into four performance bands. It is the level most intervention planning actually happens at, because a programme is designed for a band rather than a single grade.</p></div>`;
+
+  html += `<div class="grid g4" style="margin-bottom:16px">${K.map(k=>{
+    const d = be[k]-bt[k];
+    const shrinkIsGood = (k==='GAGAL');   // fewer failures is progress; more of every other band is progress
+    return kpi(titleCase(k)+' <span style="font-weight:400;text-transform:none;letter-spacing:0">('+KELOMPOK[k].join(', ')+')</span>',
+      bn[k], 'now',
+      `TOV ${bt[k]} → ETR ${be[k]} &nbsp; ${delta(d,shrinkIsGood,0)}`,
+      k==='GAGAL'?(bn[k]>0?'bad':'good'):(k==='CEMERLANG'?'good':''));
+  }).join('')}</div>`;
+
+  html += card('Kelompok movement: TOV, now, and ETR',
+    'The band the cohort started in, where it sits today, and where the ETR puts it. Gaps between the middle and right bars are the work still outstanding.',
+    `<div class="chart-wrap h320"><canvas id="cKel"></canvas></div>`,
+    `The ETR moves <b>${be.LULUS-bt.LULUS>0?'+':''}${be.LULUS-bt.LULUS}</b> students into <b>Lulus</b> and takes <b>${Math.abs(be.GAGAL-bt.GAGAL)}</b> out of <b>Gagal</b> — the plan is built almost entirely on converting failures into passes rather than on lifting the top.
+      Today <b>${bn.GAGAL}</b> students remain in Gagal against a target of <b>${be.GAGAL}</b>.
+      <p style="margin-top:6px">Cemerlang moves from ${bt.CEMERLANG} to ${be.CEMERLANG} and Kepujian from ${bt.KEPUJIAN} to ${be.KEPUJIAN}. Those are small absolute numbers, so a single student's result will visibly swing those bands.</p>`);
+
+  if(kel.length){
+    html += `<div class="card"><div class="card-head"><div class="card-title">Panel intervention plan, as recorded</div>
+      <div class="card-what">The programme allocation entered in the workbook: which students are in the 5P/GP push and which are on the panel's business-as-usual programme.</div></div>
+      <div class="tbl-scroll"><table><thead><tr><th>Kelompok</th><th>Grade</th><th>TOV count</th><th>ETR count</th><th>Change</th><th>Murid 5P/GP</th><th>Programme panitia (BAU)</th></tr></thead><tbody>${
+        kel.map(r=>`<tr><td style="font-weight:600">${esc(titleCase(r.group||''))}</td><td style="text-align:left">${gchip(r.grade)}</td>
+          <td class="num">${r.tov}</td><td class="num">${r.etr}</td>
+          <td class="num" style="color:${r.diff>0?'var(--good)':(r.diff<0?'var(--bad)':'var(--muted)')}">${r.diff>0?'+':''}${r.diff}</td>
+          <td class="num">${r.murid5PGP||'—'}</td><td class="num">${r.bau||'—'}</td></tr>`).join('')
+      }<tr style="background:var(--surface-2);font-weight:600"><td>Total</td><td></td><td class="num">${kel.reduce((a,r)=>a+r.tov,0)}</td><td class="num">${kel.reduce((a,r)=>a+r.etr,0)}</td><td></td><td class="num">${p5}</td><td class="num">${bau}</td></tr>
+      </tbody></table></div>
+      <div class="note"><span class="nl">Reading this</span>
+        <b>${p5}</b> students are assigned to the 5P/GP push and <b>${bau}</b> to the panel's own programme — <b>${p5+bau}</b> of ${st.length} students in total, leaving <b>${st.length-p5-bau}</b> with no programme recorded against them.
+        The change column is ETR minus TOV: positive means the plan expects that grade to gain students, negative means it expects to lose them upward.</div></div>`;
+  }
+
+  html += card('Programme coverage against need',
+    'How the recorded programme allocation lines up with the students who are actually behind target.',
+    `<div class="chart-wrap h280"><canvas id="cBau"></canvas></div>`,
+    bauNote(st, kel));
+
+  $('#p-kelompok').innerHTML = html;
+  drawKel('cKel', bt, bn, be, STAGES.find(s=>s.k===last.stage).label);
+  drawBau('cBau', st, kel);
+}
+function bauNote(st, kel){
+  const chk = latestCheckpoint(st);
+  if(!chk) return 'No checkpoint is scored yet, so need cannot be compared with coverage.';
+  const need = st.filter(s=>['OfT','FfT'].includes(s[chk.a].status));
+  const cover = kel.reduce((a,r)=>a+(r.bau||0)+(r.murid5PGP||0),0);
+  return `<b>${need.length}</b> students are behind target at ${esc(STAGES.find(x=>x.k===chk.a).label)}. The workbook records <b>${cover}</b> programme places in total.
+    ${cover>=need.length?'On paper there are enough places — the question becomes whether the right students hold them.':'There are fewer recorded places than students behind target, so some will not be covered by any programme.'}
+    <p style="margin-top:6px">Programme allocation in the workbook is recorded per grade band, not per named student, so this comparison shows scale rather than a matched list. Page 05 gives the named list.</p>`;
+}
+function drawKel(id, bt, bn, be, nowLbl){
+  const K = Object.keys(KELOMPOK);
+  draw(id,{type:'bar',data:{labels:K.map(k=>titleCase(k)+' ('+KELOMPOK[k].join('/')+')'),datasets:[
+    {label:'TOV',data:K.map(k=>bt[k]),backgroundColor:'#B7C4D3',borderRadius:2},
+    {label:nowLbl+' (now)',data:K.map(k=>bn[k]),backgroundColor:'#0F5C6B',borderRadius:2},
+    {label:'ETR (target)',data:K.map(k=>be[k]),backgroundColor:'#C98A1B',borderRadius:2}
+  ]},options:{scales:{x:GRIDX,y:Object.assign({beginAtZero:true,title:{display:true,text:'Students'}},GRIDY)},plugins:{legend:{position:'bottom'}}}});
+}
+function drawBau(id, st, kel){
+  const chk = latestCheckpoint(st);
+  const K = Object.keys(KELOMPOK);
+  const need = K.map(k=>st.filter(s=>kelompokOf(s.ETR.grade)===k && chk && ['OfT','FfT'].includes(s[chk.a].status)).length);
+  const places = K.map(k=>kel.filter(r=>kelompokOf(r.grade)===k).reduce((a,r)=>a+(r.bau||0)+(r.murid5PGP||0),0));
+  draw(id,{type:'bar',data:{labels:K.map(titleCase),datasets:[
+    {label:'Students behind target',data:need,backgroundColor:'#A8324A',borderRadius:2},
+    {label:'Programme places recorded',data:places,backgroundColor:'#0F5C6B',borderRadius:2}
+  ]},options:{scales:{x:GRIDX,y:Object.assign({beginAtZero:true,title:{display:true,text:'Students'}},GRIDY)},plugins:{legend:{position:'bottom'}}}});
+}
+
+/* ============================================================
+   PAGE 07 — SPM HISTORY
+   ============================================================ */
+function renderHistory(){
+  const S=school(), hist=(S.history||[]).filter(h=>h.cal);
+  let html = `<div class="page-head"><div class="eyebrow">07 &middot; History</div><h1>SPM history</h1>
+    <p class="lede">Five years of actual SPM results for this subject. This is the only place in the dashboard showing examinations that have already been sat and graded by the board — everything else on the current cohort is internal assessment.</p></div>`;
+
+  if(!hist.length){ $('#p-history').innerHTML = html + `<div class="emptybox">No historical SPM results are recorded for this school.</div>`; return; }
+
+  const first=hist[0], lastH=hist[hist.length-1];
+  const etr = stageStats(S.students,'ETR');
+  html += `<div class="grid g4" style="margin-bottom:16px">
+    ${kpi('Best GPMP on record', num(Math.min(...hist.map(h=>h.gpmp))),'', hist.reduce((a,h)=>h.gpmp<a.gpmp?h:a).label)}
+    ${kpi('Latest GPMP', num(lastH.gpmp),'', `${esc(lastH.label)} &nbsp; ${delta(lastH.gpmp-hist[hist.length-2].gpmp,true)} on the year before`, lastH.gpmp<hist[hist.length-2].gpmp?'good':'warn')}
+    ${kpi('Latest pass rate', pct(lastH.lulus.pct),'', `${lastH.lulus.bil} of ${lastH.cal} candidates`, lastH.lulus.pct>=0.9?'good':'warn')}
+    ${kpi('ETR '+esc(String(S.profile.year||'')), num(etr.gpmp),'', `Asks for ${num(lastH.gpmp-etr.gpmp)} better than ${esc(lastH.label)}`)}
+  </div>`;
+
+  html += card('GPMP and pass rate, 2021 onwards',
+    'Two measures of the same five years. GPMP uses the reversed axis on the left so up is better on both lines.',
+    `<div class="chart-wrap h320"><canvas id="cHistTrend"></canvas></div>`,
+    histTrendNote(hist, etr));
+
+  html += card('Grade distribution by SPM year',
+    'The full grade profile of each cohort. Candidate numbers differ year to year, so read the shape rather than the height.',
+    `<div class="chart-wrap h340"><canvas id="cHistMix"></canvas></div>`,
+    histMixNote(hist), 'flush');
+
+  html += card('Grade distribution as a share of candidates',
+    'The same data normalised to 100% per year, which removes the effect of cohort size.',
+    `<div class="chart-wrap h340"><canvas id="cHistPct"></canvas></div>`,
+    `Because cohort size swings between ${Math.min(...hist.map(h=>h.cal))} and ${Math.max(...hist.map(h=>h.cal))} candidates, absolute counts mislead. On this normalised view the grade G share moved from <b>${pct(first.gagal.pct)}</b> in ${esc(first.label)} to <b>${pct(lastH.gagal.pct)}</b> in ${esc(lastH.label)}.`, 'flush');
+
+  html += `<div class="card"><div class="card-head"><div class="card-title">Full historical table</div>
+    <div class="card-what">Every grade count and percentage exactly as recorded in the workbook, with the current year's targets appended for comparison.</div></div>
+    <div class="tbl-scroll"><table><thead><tr><th>Year</th><th>Candidates</th>${GRADES.map(g=>`<th>${g}</th>`).join('')}<th>Pass</th><th>Pass %</th><th>GPMP</th></tr></thead><tbody>
+      ${hist.map(h=>`<tr><td style="font-weight:600">${esc(h.label)}</td><td class="num">${h.cal}</td>
+        ${GRADES.map(g=>`<td class="num" style="${h.grades[g].bil?'':'color:var(--line-2)'}">${h.grades[g].bil}</td>`).join('')}
+        <td class="num">${h.lulus.bil}</td><td class="num">${pct(h.lulus.pct)}</td><td class="num" style="font-weight:600">${num(h.gpmp)}</td></tr>`).join('')}
+      ${['TOV','ETR'].map(k=>{const x=stageStats(S.students,k);return `<tr style="background:var(--accent-soft)"><td style="font-weight:600">${k} ${esc(String(S.profile.year||''))}</td><td class="num">${x.n}</td>
+        ${GRADES.map(g=>`<td class="num">${x.counts[g]}</td>`).join('')}<td class="num">${x.pass}</td><td class="num">${pct(x.passPct)}</td><td class="num" style="font-weight:600">${num(x.gpmp)}</td></tr>`;}).join('')}
+    </tbody></table></div>${gradeLegend()}</div>`;
+
+  $('#p-history').innerHTML = html;
+  drawHistTrend('cHistTrend', hist);
+  drawHistMix('cHistMix', hist, false);
+  drawHistMix('cHistPct', hist, true);
+}
+function histTrendNote(hist, etr){
+  const first=hist[0], last=hist[hist.length-1];
+  const best = hist.reduce((a,h)=>h.gpmp<a.gpmp?h:a);
+  const dir = last.gpmp<first.gpmp;
+  return `Across ${hist.length} years GPMP moved from <b>${num(first.gpmp)}</b> to <b>${num(last.gpmp)}</b> — ${dir?`an improvement of <b>${num(first.gpmp-last.gpmp)}</b> points`:`a decline of <b>${num(last.gpmp-first.gpmp)}</b> points`}. The strongest year on record is <b>${esc(best.label)}</b> at ${num(best.gpmp)}.
+    Pass rate went from <b>${pct(first.lulus.pct)}</b> to <b>${pct(last.lulus.pct)}</b>.
+    <p style="margin-top:6px">The ETR of <b>${num(etr.gpmp)}</b> would be the best result in this five-year window${etr.gpmp<best.gpmp?', beating '+esc(best.label)+' by '+num(best.gpmp-etr.gpmp)+' points':''}. That is worth stating openly when the plan is presented, because it sets the bar above anything the subject has previously achieved.</p>`;
+}
+function histMixNote(hist){
+  const first=hist[0], last=hist[hist.length-1];
+  const gFirst=first.grades.G.bil, gLast=last.grades.G.bil;
+  return `Candidate numbers ranged from <b>${Math.min(...hist.map(h=>h.cal))}</b> to <b>${Math.max(...hist.map(h=>h.cal))}</b> over the period.
+    Grade G fell from <b>${gFirst}</b> students in ${esc(first.label)} to <b>${gLast}</b> in ${esc(last.label)}, while the D and E bands hold <b>${last.grades.D.bil+last.grades.E.bil}</b> of ${last.cal} candidates in the latest year — the subject's mass sits at the bottom of the pass range, not below it.`;
+}
+function drawHistTrend(id, hist){
+  draw(id,{type:'line',data:{labels:hist.map(h=>h.label.replace('SPM ','')),datasets:[
+    {label:'GPMP (reversed axis)',data:hist.map(h=>h.gpmp),yAxisID:'y',borderColor:'#0F5C6B',backgroundColor:'#0F5C6B',borderWidth:2.5,pointRadius:5,tension:.25},
+    {label:'Pass rate %',data:hist.map(h=>h.lulus.pct*100),yAxisID:'y1',borderColor:'#C98A1B',backgroundColor:'#C98A1B',borderWidth:2.5,pointRadius:5,tension:.25}
+  ]},options:{scales:{x:GRIDX,
+    y:Object.assign({reverse:true,position:'left',title:{display:true,text:'GPMP ▲ better'}},GRIDY),
+    y1:Object.assign({position:'right',min:0,max:100,grid:{display:false},title:{display:true,text:'Pass % ▲ better'},ticks:{callback:v=>v+'%'},border:{display:false}},{})},
+    plugins:{legend:{position:'bottom'}}}});
+}
+function drawHistMix(id, hist, asPct){
+  draw(id,{type:'bar',data:{labels:hist.map(h=>h.label.replace('SPM ','')),
+    datasets:GRADES.map(g=>({label:g,data:hist.map(h=>asPct?h.grades[g].bil/h.cal*100:h.grades[g].bil),backgroundColor:GCOL[g],borderWidth:0,borderRadius:1}))},
+    options:{scales:{x:Object.assign({stacked:true},GRIDX),y:Object.assign({stacked:true,beginAtZero:true,max:asPct?100:undefined,ticks:asPct?{callback:v=>v+'%'}:{},title:{display:true,text:asPct?'Share of candidates':'Candidates'}},GRIDY)},
+      plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${asPct?c.parsed.y.toFixed(1)+'%':c.parsed.y}`}}}}});
+}
+
+/* ============================================================
+   PAGE 08 — DEMOGRAPHICS
+   ============================================================ */
+function renderDemog(){
+  const S=school(), d=(S.demographics||[]).filter(r=>r.race!=='JUMLAH');
+  const tot=(S.demographics||[]).find(r=>r.race==='JUMLAH')||{L:0,P:0,JUM:0};
+  let html = `<div class="page-head"><div class="eyebrow">08 &middot; Cohort</div><h1>Cohort composition</h1>
+    <p class="lede">The registered make-up of the SPM cohort as recorded in the workbook header. These figures describe who is sitting the paper; they are not linked to individual marks in the source file.</p></div>`;
+
+  html += `<div class="grid g4" style="margin-bottom:16px">
+    ${kpi('Total cohort', tot.JUM,'students','As registered for '+esc(String(S.profile.year||'')))}
+    ${kpi('Lelaki (male)', tot.L,'', tot.JUM?pct(tot.L/tot.JUM)+' of the cohort':'')}
+    ${kpi('Perempuan (female)', tot.P,'', tot.JUM?pct(tot.P/tot.JUM)+' of the cohort':'')}
+    ${kpi('Records with marks', S.students.length,'', S.students.length===tot.JUM?'Matches the registered total':'Differs from the registered total', S.students.length===tot.JUM?'good':'warn')}
+  </div>`;
+
+  html += `<div class="grid g2">
+    ${card('Cohort by group and gender','Counts as entered in the workbook header row.',
+      `<div class="chart-wrap h280"><canvas id="cDemog"></canvas></div>`,
+      `The cohort is <b>${tot.L}</b> male and <b>${tot.P}</b> female out of <b>${tot.JUM}</b>. ${d.filter(r=>r.JUM>0).map(r=>`${titleCase(r.race)}: ${r.JUM}`).join(' · ')}.`)}
+    ${card('Gender split','A single ratio, shown separately because it is the split most often reported upward.',
+      `<div class="chart-wrap h280"><canvas id="cGender"></canvas></div>`,
+      `The workbook does not tag individual students with gender, so mark performance cannot be broken down by gender from this file alone. If that analysis is needed, gender has to be added to the student rows in the source workbook first.`)}
+  </div>`;
+
+  html += `<div class="card"><div class="card-head"><div class="card-title">Composition table</div><div class="card-what">Exactly as recorded, including zero rows.</div></div>
+    <div class="tbl-scroll"><table><thead><tr><th>Group</th><th>Lelaki</th><th>Perempuan</th><th>Jumlah</th><th>Share</th></tr></thead><tbody>
+    ${(S.demographics||[]).map(r=>`<tr style="${r.race==='JUMLAH'?'background:var(--surface-2);font-weight:600':''}"><td>${esc(titleCase(r.race))}</td>
+      <td class="num">${r.L}</td><td class="num">${r.P}</td><td class="num">${r.JUM}</td>
+      <td class="num">${tot.JUM?pct(r.JUM/tot.JUM):'—'}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+
+  $('#p-demog').innerHTML = html;
+  draw('cDemog',{type:'bar',data:{labels:d.map(r=>titleCase(r.race)),datasets:[
+    {label:'Lelaki',data:d.map(r=>r.L),backgroundColor:'#0F5C6B',borderRadius:2},
+    {label:'Perempuan',data:d.map(r=>r.P),backgroundColor:'#C98A1B',borderRadius:2}
+  ]},options:{scales:{x:Object.assign({stacked:true},GRIDX),y:Object.assign({stacked:true,beginAtZero:true,title:{display:true,text:'Students'}},GRIDY)},plugins:{legend:{position:'bottom'}}}});
+  draw('cGender',{type:'doughnut',data:{labels:['Lelaki','Perempuan'],datasets:[{data:[tot.L,tot.P],backgroundColor:['#0F5C6B','#C98A1B'],borderWidth:2,borderColor:'#fff'}]},
+    options:{cutout:'62%',plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed} (${(c.parsed/tot.JUM*100).toFixed(1)}%)`}}}}});
+}
+
+/* ============================================================
+   PAGE 09 — SCHOOL COMPARISON
+   ============================================================ */
+function renderCompare(){
+  let html = `<div class="page-head"><div class="eyebrow">09 &middot; Across schools</div><h1>School comparison</h1>
+    <p class="lede">Every school loaded into the dashboard, ranked side by side on the same measures. Add more schools on page 10 and they appear here automatically.</p></div>`;
+
+  if(DB.schools.length<2){
+    html += `<div class="emptybox"><b style="color:var(--ink);display:block;margin-bottom:6px">One school loaded</b>
+      Comparison charts need at least two. Go to <b>Data &amp; import</b> and drop in another school's headcount workbook — the same TAPAK format this file was built from — and this page fills itself in.</div>`;
+    $('#p-compare').innerHTML = html; return;
+  }
+
+  const rows = DB.schools.map((S,i)=>{
+    const tov=stageStats(S.students,'TOV'), etr=stageStats(S.students,'ETR'), last=latestActual(S.students);
+    const chk=latestCheckpoint(S.students);
+    return {i,S,tov,etr,last,lastLbl:STAGES.find(x=>x.k===last.stage).label,
+      risk: chk? S.students.filter(s=>['OfT','FfT'].includes(s[chk.a].status)).length : 0,
+      gap: (last.gpmp!=null&&etr.gpmp!=null)? last.gpmp-etr.gpmp : null};
+  });
+  const byGpmp = rows.slice().sort((a,b)=>(a.last.gpmp??99)-(b.last.gpmp??99));
+
+  html += `<div class="grid g4" style="margin-bottom:16px">
+    ${kpi('Schools loaded', DB.schools.length,'', 'Each with its own full record')}
+    ${kpi('Students covered', DB.schools.reduce((a,S)=>a+S.students.length,0),'', 'Across all loaded schools')}
+    ${kpi('Strongest GPMP now', num(byGpmp[0].last.gpmp),'', esc(titleCase(byGpmp[0].S.profile.school||'')),'good')}
+    ${kpi('Widest ETR gap', num(Math.max(...rows.map(r=>r.gap??-99))),'', esc(titleCase(rows.reduce((a,r)=>(r.gap??-99)>(a.gap??-99)?r:a).S.profile.school||'')),'warn')}
+  </div>`;
+
+  html += card('Current GPMP against ETR, by school',
+    'Solid bars are where each school stands today; the outlined marker is the ETR it committed to. A tall gap means a school is a long way from its own promise.',
+    `<div class="chart-wrap h340"><canvas id="cCmpGpmp"></canvas></div>`,
+    `Ranked strongest first: ${byGpmp.map(r=>`<b>${esc(titleCase(r.S.profile.school||''))}</b> ${num(r.last.gpmp)}`).join(' · ')}.
+     Remember GPMP is not comparable across different subjects — only compare schools sitting the same paper.`);
+
+  html += card('Pass rate by school',
+    'Share of each cohort at grade E or better in the most recent assessment that school has scored.',
+    `<div class="chart-wrap h300"><canvas id="cCmpPass"></canvas></div>`,
+    `Schools are at different points in the cycle, so the bar labels name which assessment each figure comes from. Comparing a PPC result against another school's UP 1 result flatters the later one.`);
+
+  html += `<div class="card"><div class="card-head"><div class="card-title">Comparison table</div>
+    <div class="card-what">Every loaded school on the same measures. Click a row to switch the whole dashboard to that school.</div></div>
+    <div class="tbl-scroll"><table><thead><tr><th>School</th><th>Subject</th><th>Cohort</th><th>Latest</th><th>TOV GPMP</th><th>GPMP now</th><th>ETR GPMP</th><th>Gap</th><th>Pass now</th><th>Behind target</th></tr></thead><tbody>
+    ${byGpmp.map(r=>`<tr data-school="${r.i}" style="cursor:pointer" class="${r.i===CUR?'sel':''}">
+      <td class="name-cell">${esc(titleCase(r.S.profile.school||''))}</td>
+      <td style="text-align:left;font-size:12px;color:var(--muted)">${esc(r.S.profile.subject||'')}</td>
+      <td class="num">${r.S.students.length}</td><td style="text-align:left;font-size:12px">${esc(r.lastLbl)}</td>
+      <td class="num">${num(r.tov.gpmp)}</td><td class="num" style="font-weight:600">${num(r.last.gpmp)}</td><td class="num">${num(r.etr.gpmp)}</td>
+      <td class="num" style="color:${(r.gap??0)<=0?'var(--good)':'var(--bad)'}">${r.gap==null?'—':(r.gap>0?'+':'')+num(r.gap)}</td>
+      <td class="num">${pct(r.last.passPct)}</td><td class="num">${r.risk}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+
+  $('#p-compare').innerHTML = html;
+  draw('cCmpGpmp',{type:'bar',data:{labels:rows.map(r=>titleCase(r.S.profile.school||'')),datasets:[
+    {label:'GPMP now',data:rows.map(r=>r.last.gpmp),backgroundColor:'#0F5C6B',borderRadius:3,order:2},
+    {label:'ETR',type:'line',data:rows.map(r=>r.etr.gpmp),borderColor:'#A8324A',backgroundColor:'#A8324A',showLine:false,pointStyle:'rectRot',pointRadius:8,order:1}
+  ]},options:{scales:{x:Object.assign({ticks:{font:{size:10}}},GRIDX),y:Object.assign({reverse:true,title:{display:true,text:'GPMP ▲ better'}},GRIDY)},plugins:{legend:{position:'bottom'}}}});
+  draw('cCmpPass',{type:'bar',data:{labels:rows.map(r=>titleCase(r.S.profile.school||'')+' ('+r.lastLbl+')'),datasets:[
+    {label:'Pass rate %',data:rows.map(r=>r.last.passPct*100),backgroundColor:rows.map(r=>r.last.passPct>=0.9?'#18866B':(r.last.passPct>=0.7?'#C98A1B':'#A8324A')),borderRadius:3}
+  ]},options:{scales:{x:Object.assign({ticks:{font:{size:10}}},GRIDX),y:Object.assign({beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}},GRIDY)},plugins:{legend:{display:false}}}});
+  $$('#p-compare tr[data-school]').forEach(tr=>tr.onclick=()=>{ CUR=+tr.dataset.school; $('#schoolSel').value=CUR; refresh(); });
+}
+
+/* ============================================================
+   PAGE 10 — DATA & IMPORT
+   ============================================================ */
+function renderData(){
+  const issues = dataIssues();
+  let html = `<div class="page-head"><div class="eyebrow">10 &middot; Manage</div><h1>Data &amp; import</h1>
+    <p class="lede">Add another school by dropping in its headcount workbook. The file must follow the same TAPAK layout as the original — sheets named <b>HC 1</b> and <b>HC 2</b>, with the standard row and column positions.</p></div>`;
+
+  html += card('Add a school',
+    'Drop one or more .xlsx workbooks here, or choose them from your device. Each file becomes one school in the selector at the top of the screen.',
+    `<div class="dropzone" id="dz">
+       <button class="btn" id="pickBtn">Choose workbook</button>
+       <input type="file" id="fileIn" accept=".xlsx,.xlsm" multiple hidden>
+       <p>or drag files onto this panel</p>
+     </div>
+     <div class="filelist" id="importLog"></div>`,
+    `<b>Updating a school already loaded:</b> drop the newer workbook in as normal. A record is matched on school name, subject and cohort year together, so the same school's English and Maths files sit side by side rather than overwriting each other. When a match is found the dashboard lists what the new file changes and asks whether to replace the old record — there is no need to remove anything first. Choose <i>keep both</i> only if you want to hold two versions side by side, and remove the older one below when you are done with it.
+     <p style="margin-top:7px">Imports live in this browser tab only. To keep them, use <b>Save data file</b> below — it writes a single .json holding every school, and <b>Load data file</b> merges it back using the same matching rule. That file is the thing to share with colleagues, not screenshots.</p>`);
+
+  html += card('Schools currently loaded',
+    'What the dashboard is working from right now.',
+    `<div class="filelist">${DB.schools.map((S,i)=>`
+      <div class="filerow">
+        <div><b>${esc(titleCase(S.profile.school||'Untitled'))}</b><br>
+        <small>${esc(S.profile.subject||'')} · ${S.students.length} students · ${esc(String(S.profile.year||''))} · source: ${esc(S.source||'imported')}</small></div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn ghost" data-view="${i}">View</button>
+          ${DB.schools.length>1?`<button class="del" data-del="${i}">Remove</button>`:''}
+        </div>
+      </div>`).join('')}</div>
+     <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:14px">
+       <button class="btn ghost" id="saveJson">Save data file (.json)</button>
+       <button class="btn ghost" id="loadJson">Load data file</button>
+       <input type="file" id="jsonIn" accept=".json" hidden>
+     </div>`);
+
+  html += `<div class="card"><div class="card-head"><div class="card-title">Data quality check</div>
+    <div class="card-what">Gaps and inconsistencies found in the loaded records. These do not stop the dashboard working, but they change how confidently a number can be read.</div></div>
+    <div class="card-body">${issues.length? issues.map(i=>`<div class="warnbox"><b>${esc(i.title)}</b>${i.body}</div>`).join('') : `<div class="emptybox">No issues found. Every student has a complete record for the assessments that have been sat.</div>`}</div></div>`;
+
+  html += `<div class="card"><div class="card-head"><div class="card-title">Source reconciliation</div>
+    <div class="card-what">The HC 1 summary table as written in the workbook, next to the same figures rebuilt from the HC 2 student rows. Rows that disagree are highlighted.</div></div>
+    <div class="tbl-scroll"><table><thead><tr><th>Stage</th><th colspan="3" style="text-align:center">Candidates</th><th colspan="3" style="text-align:center">Pass count</th><th colspan="3" style="text-align:center">GPMP</th></tr>
+    <tr><th></th><th>Workbook</th><th>Derived</th><th>&Delta;</th><th>Workbook</th><th>Derived</th><th>&Delta;</th><th>Workbook</th><th>Derived</th><th>&Delta;</th></tr></thead><tbody>
+    ${(school().targets||[]).map(t=>{
+      const k=SUMMARY_KEY[(t.label||'').toUpperCase().trim()]; if(!k) return '';
+      const d=stageStats(school().students,k);
+      const cell=(b,dv,dig)=>{const bad=(b!=null&&dv!=null&&Math.abs(b-dv)>(dig?0.005:0));
+        return `<td class="num">${dig?num(b):(b??'—')}</td><td class="num">${dig?num(dv):(dv??'—')}</td>
+        <td class="num" style="${bad?'color:var(--bad);font-weight:600':'color:var(--line-2)'}">${(b==null||dv==null)?'—':(bad?((b-dv)>0?'+':'')+(dig?num(b-dv):b-dv):'0')}</td>`;};
+      return `<tr><td style="font-weight:600">${esc(t.label)}</td>${cell(t.cal,d.n)}${cell(t.lulus&&t.lulus.bil,d.pass)}${cell(t.gpmp,d.gpmp,1)}</tr>`;
+    }).join('')}</tbody></table></div>
+    <div class="note"><span class="nl">Reading this</span>A zero in every &Delta; column means the workbook's own summary and its student records tell the same story. A red figure means they do not, and the dashboard has followed the student records. That choice is deliberate: a summary cell can carry a stale formula, but a student's mark is the thing that was actually recorded.</div></div>`;
+
+  html += card('What the importer reads',
+    'The exact cells the parser looks at, so a workbook can be checked before uploading.',
+    `<div class="tbl-scroll"><table><thead><tr><th>Field</th><th>Sheet</th><th>Cells</th></tr></thead><tbody>
+      <tr><td>School name</td><td style="text-align:left">HC 1</td><td style="text-align:left" class="num">D4</td></tr>
+      <tr><td>Principal</td><td style="text-align:left">HC 1</td><td style="text-align:left" class="num">N4</td></tr>
+      <tr><td>Subject</td><td style="text-align:left">HC 1</td><td style="text-align:left" class="num">D5</td></tr>
+      <tr><td>Ketua Panitia</td><td style="text-align:left">HC 1</td><td style="text-align:left" class="num">N5</td></tr>
+      <tr><td>Cohort year</td><td style="text-align:left">HC 1</td><td style="text-align:left" class="num">B11</td></tr>
+      <tr><td>Cohort composition</td><td style="text-align:left">HC 1</td><td style="text-align:left" class="num">D11:R11</td></tr>
+      <tr><td>SPM history 2021–2025</td><td style="text-align:left">HC 1</td><td style="text-align:left" class="num">C17:AA21</td></tr>
+      <tr><td>ETR / TOV / OTI / exams</td><td style="text-align:left">HC 1</td><td style="text-align:left" class="num">C22:AA29</td></tr>
+      <tr><td>Student rows</td><td style="text-align:left">HC 2</td><td style="text-align:left" class="num">A8 downward</td></tr>
+      <tr><td>Kelompok &amp; programmes</td><td style="text-align:left">HC 2</td><td style="text-align:left" class="num">Z28:AP37</td></tr>
+    </tbody></table></div>`,
+    `If an import comes back with the wrong student count, the usual cause is that the student block does not start at row 8, or that the file has extra header rows. Grades are recalculated from marks on import, so a workbook whose grade formulas have not refreshed will still load correctly.`, 'flush');
+
+  $('#p-data').innerHTML = html;
+  wireImport();
+}
+/* Maps the HC 1 summary row labels onto the stage keys used everywhere else */
+const SUMMARY_KEY = {'ETR MP':'ETR','ETR':'ETR','TOV':'TOV','OTI1':'OTI1','OTI 1':'OTI1','UP1':'UP1','UP 1':'UP1',
+  'OTI2':'OTI2','OTI 2':'OTI2','PPT':'PPT','OTI3':'OTI3','OTI 3':'OTI3','PPC':'PPC'};
+/* Compares the workbook's own HC 1 summary table against the same figures rebuilt from the HC 2 student rows */
+function reconcile(S){
+  const out=[];
+  (S.targets||[]).forEach(t=>{
+    const k = SUMMARY_KEY[(t.label||'').toUpperCase().trim()];
+    if(!k) return;
+    const d = stageStats(S.students,k);
+    if(!d.n && !t.cal) return;
+    const diffs=[];
+    if((t.cal||0)!==d.n) diffs.push({field:'Candidates',book:t.cal||0,derived:d.n});
+    if((t.lulus&&t.lulus.bil||0)!==d.pass) diffs.push({field:'Pass count',book:t.lulus.bil||0,derived:d.pass});
+    if((t.grades&&t.grades.G&&t.grades.G.bil||0)!==d.counts.G) diffs.push({field:'Grade G count',book:t.grades.G.bil||0,derived:d.counts.G});
+    GRADES.slice(0,9).forEach(g=>{
+      const b=(t.grades&&t.grades[g]&&t.grades[g].bil)||0;
+      if(b!==d.counts[g]) diffs.push({field:'Grade '+g+' count',book:b,derived:d.counts[g]});
+    });
+    if(t.gpmp!=null && d.gpmp!=null && Math.abs(t.gpmp-d.gpmp)>0.005) diffs.push({field:'GPMP',book:num(t.gpmp),derived:num(d.gpmp)});
+    if(diffs.length) out.push({stage:k,label:t.label,diffs});
+  });
+  return out;
+}
+function dataIssues(){
+  const out=[];
+  DB.schools.forEach(S=>{
+    const nm = titleCase(S.profile.school||'school');
+    const noTov = S.students.filter(s=>s.TOV.mark==null);
+    if(noTov.length) out.push({title:`${nm}: ${noTov.length} student${noTov.length>1?'s':''} without a TOV mark`,
+      body:`<ul>${noTov.map(s=>`<li>${esc(titleCase(s.name))}</li>`).join('')}</ul>
+        Baseline comparisons and any OTI value derived from TOV are unreliable for ${noTov.length>1?'these students':'this student'}. The OTI figures still appear because the workbook computed them, but they were built on a missing starting point.`});
+    const noEtr = S.students.filter(s=>s.ETR.mark==null);
+    if(noEtr.length) out.push({title:`${nm}: ${noEtr.length} student${noEtr.length>1?'s':''} without an ETR`,
+      body:`<ul>${noEtr.map(s=>`<li>${esc(titleCase(s.name))}</li>`).join('')}</ul>No target has been set, so no gap-to-target can be calculated.`});
+    const tot=(S.demographics||[]).find(r=>r.race==='JUMLAH');
+    if(tot && tot.JUM && tot.JUM!==S.students.length) out.push({title:`${nm}: header total does not match the student list`,
+      body:`The cohort header records <b>${tot.JUM}</b> students but <b>${S.students.length}</b> rows carry marks. All rates on this dashboard use the ${S.students.length} rows actually present.`});
+    const der = S.students.filter(s=>['OTI1','OTI2','OTI3'].some(k=>s[k]&&s[k].derived));
+    if(der.length) out.push({title:`${nm}: OTI targets rebuilt for ${der.length} student${der.length>1?'s':''}`,
+      body:`The workbook stores OTI 1–3 as formulas, and this file arrived without their calculated values — usually because it was saved by a tool that drops them, or opened and re-saved without recalculating.
+        The dashboard rebuilt them using the workbook's own rule: <b>OTI n = TOV + (ETR − TOV) × n/4</b>, treating a missing TOV as zero.
+        Track status is therefore available as normal, but if the panel set any OTI by hand rather than by formula, those hand-set values are not in this file and the rebuilt figures will differ from them. Open the workbook in Excel, let it recalculate, save, and re-import to be certain.`});
+    const rec = reconcile(S);
+    if(rec.length) out.push({title:`${nm}: the HC 1 summary table disagrees with the student rows`,
+      body:`<ul>${rec.map(r=>`<li><b>${esc(r.label)}</b> — ${r.diffs.map(d=>`${d.field}: workbook says ${d.book}, student rows give ${d.derived}`).join('; ')}</li>`).join('')}</ul>
+        Every figure on this dashboard is rebuilt from the individual student rows in HC 2, because those are the underlying records. Where the HC 1 summary differs, its cell formula has drifted from the data beneath it and is worth correcting in the source file.`});
+    const pending = STAGES.filter(x=>x.kind==='actual'&&stageStats(S.students,x.k).n===0).map(x=>x.label);
+    if(pending.length) out.push({title:`${nm}: ${pending.join(', ')} not scored yet`,
+      body:`No marks are recorded for ${pending.join(' or ')}. Charts leave ${pending.length>1?'those points':'that point'} empty rather than treating a blank as zero.`});
+  });
+  return out;
+}
+function wireImport(){
+  const dz=$('#dz'), fi=$('#fileIn');
+  if(!dz) return;
+  $('#pickBtn').onclick = ()=>fi.click();
+  fi.onchange = e=>handleFiles(e.target.files);
+  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('hot');}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('hot');}));
+  dz.addEventListener('drop',e=>handleFiles(e.dataTransfer.files));
+  $$('#p-data [data-view]').forEach(b=>b.onclick=()=>{CUR=+b.dataset.view;$('#schoolSel').value=CUR;refresh();});
+  $$('#p-data [data-del]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.del;
+    if(!confirm('Remove '+(DB.schools[i].profile.school||'this school')+' from the dashboard?')) return;
+    DB.schools.splice(i,1); CUR=0; refresh();
+  });
+  $('#saveJson').onclick = ()=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify({schools:DB.schools},null,1)],{type:'application/json'}));
+    a.download='headcount_data_'+new Date().toISOString().slice(0,10)+'.json'; a.click(); URL.revokeObjectURL(a.href);
+  };
+  $('#loadJson').onclick = ()=>$('#jsonIn').click();
+  $('#jsonIn').onchange = e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload = ()=>{ try{
+      const d=JSON.parse(r.result);
+      if(!d.schools||!Array.isArray(d.schools)) throw new Error('No schools array in this file.');
+      const incoming = d.schools.map(normalise);
+      let added=0, updated=0;
+      incoming.forEach(S=>{ const at=findExisting(S.profile);
+        if(at===-1){ DB.schools.push(S); added++; } else { DB.schools[at]=S; updated++; } });
+      CUR=0; refresh();
+      log(`${f.name}: ${updated} school${updated===1?'':'s'} updated, ${added} added.`, true);
+    }catch(err){ log(`Could not read ${f.name}: ${err.message}`, false); } };
+    r.readAsText(f);
+  };
+}
+function log(msg, ok){
+  const el=$('#importLog'); if(!el) return;
+  el.insertAdjacentHTML('afterbegin',
+    `<div class="filerow" style="border-color:${ok?'#B6D9CF':'#EDC9D1'};background:${ok?'var(--good-soft)':'var(--bad-soft)'}"><div>${esc(msg)}</div></div>`);
+}
+/* Two records describe the same thing when school, subject and cohort year all match */
+const idKey = p => [p.school,p.subject,p.year].map(v=>String(v||'').toUpperCase().replace(/\s+/g,' ').trim()).join('|');
+function findExisting(profile){ const k=idKey(profile); return DB.schools.findIndex(S=>idKey(S.profile)===k); }
+
+/* Describes what changed between the loaded record and the incoming one */
+function importDiff(oldS, newS){
+  const bits=[];
+  if(oldS.students.length!==newS.students.length) bits.push(`${oldS.students.length} → ${newS.students.length} students`);
+  STAGES.forEach(x=>{
+    const a=stageStats(oldS.students,x.k), b=stageStats(newS.students,x.k);
+    if(a.n===0 && b.n>0) bits.push(`${x.label} now scored (${b.n} marks)`);
+    else if(a.n>0 && b.n>0 && Math.abs((a.gpmp||0)-(b.gpmp||0))>0.005) bits.push(`${x.label} GPMP ${num(a.gpmp)} → ${num(b.gpmp)}`);
+  });
+  return bits;
+}
+function handleFiles(files){
+  Array.from(files).forEach(f=>{
+    const r=new FileReader();
+    r.onload = ev=>{
+      try{
+        const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
+        const S = normalise(parseWorkbook(wb, f.name));
+        const at = findExisting(S.profile);
+        if(at === -1){
+          DB.schools.push(S); CUR = DB.schools.length-1;
+          log(`Added ${titleCase(S.profile.school||f.name)} — ${S.students.length} students.`, true);
+        } else {
+          const changes = importDiff(DB.schools[at], S);
+          const msg = `${titleCase(S.profile.school||'')} — ${S.profile.subject||''}, SPM ${S.profile.year||''} — is already loaded.\n\n`
+            + (changes.length ? 'What this file changes:\n  • ' + changes.join('\n  • ') : 'This file contains no changes to the figures.')
+            + '\n\nUpdate the existing record with this file?\n\nOK — replace it\nCancel — keep both as separate entries';
+          if(confirm(msg)){
+            DB.schools[at] = S; CUR = at;
+            log(`Updated ${titleCase(S.profile.school||f.name)} — ${changes.length? changes.join('; ') : 'no change to the figures'}.`, true);
+          } else {
+            DB.schools.push(S); CUR = DB.schools.length-1;
+            log(`Kept both copies of ${titleCase(S.profile.school||f.name)}. Remove the older one below when you no longer need it.`, true);
+          }
+        }
+        refresh();
+      }catch(err){ log(`${f.name}: ${err.message}`, false); }
+    };
+    r.readAsArrayBuffer(f);
+  });
+}
+/* ---- TAPAK workbook parser ---- */
+function parseWorkbook(wb, fname){
+  const h1 = wb.Sheets['HC 1'] || wb.Sheets[wb.SheetNames[0]];
+  const h2 = wb.Sheets['HC 2'] || wb.Sheets[wb.SheetNames[1]];
+  if(!h1||!h2) throw new Error('Expected two sheets named "HC 1" and "HC 2".');
+  const V = (sh,a)=>{ const c=sh[a]; return c? (c.v!==undefined?c.v:null) : null; };
+  const N = (sh,a)=>{ const v=V(sh,a); const n=typeof v==='string'?parseFloat(v):v; return (n===null||n===undefined||isNaN(n))?null:n; };
+  const T = (sh,a)=>{ const v=V(sh,a); return v==null? null : String(v).replace(/\t/g,'').trim()||null; };
+  const COL = i => { let s=''; i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-m)/26);} return s; };
+
+  const profile = {school:T(h1,'D4'),principal:T(h1,'N4'),subject:T(h1,'D5'),
+    headOfPanel:T(h1,'N5'),level:T(h1,'B9'),year:N(h1,'B11')};
+  if(!profile.school) throw new Error('No school name found in HC 1!D4 — is this the TAPAK headcount template?');
+
+  const demographics = [['MELAYU',3],['CINA',6],['INDIA',9],['LAIN-LAIN',12],['JUMLAH',15]]
+    .map(([race,c])=>({race, L:N(h1,COL(c)+'11')||0, P:N(h1,COL(c+1)+'11')||0, JUM:N(h1,COL(c+2)+'11')||0}));
+
+  const gradeRow = r => {
+    const o={label:T(h1,'C'+r),cal:N(h1,'D'+r),grades:{}};
+    let c=4;
+    GRADES.slice(0,9).forEach(g=>{ o.grades[g]={bil:N(h1,COL(c)+r)||0,pct:N(h1,COL(c+1)+r)||0}; c+=2; });
+    o.lulus = {bil:N(h1,'W'+r)||0, pct:N(h1,'X'+r)||0};
+    o.grades.G = {bil:N(h1,'Y'+r)||0, pct:N(h1,'Z'+r)||0};
+    o.gagal = Object.assign({},o.grades.G);
+    o.gpmp = N(h1,'AA'+r);
+    return o;
+  };
+  const history = [17,18,19,20,21].map(gradeRow).filter(h=>h.label);
+  const targets = [22,23,24,25,26,27,28,29].map(gradeRow).filter(h=>h.label);
+
+  const MAP = [['TOV','C','D',null],['ETR','E','F',null],['OTI1','H','I',null],['UP1','J','K','L'],
+               ['OTI2','N','O',null],['PPT','P','Q','R'],['OTI3','T','U',null],['PPC','V','W','X']];
+  const students=[]; let blanks=0;
+  for(let r=8; r<600; r++){
+    const nm = T(h2,'B'+r);
+    if(!nm){ if(++blanks>6) break; continue; }
+    blanks=0;
+    const rec={no:N(h2,'A'+r)||students.length+1,name:nm};
+    MAP.forEach(([k,mc,gc,sc])=>{
+      const m=N(h2,mc+r);
+      rec[k]={mark:m, grade:m==null?null:(T(h2,gc+r)||gradeOf(m)), status:sc?T(h2,sc+r):null};
+    });
+    students.push(rec);
+  }
+  if(!students.length) throw new Error('No student rows found from HC 2!A8 downward.');
+
+  const kelompok=[];
+  const KROWS=[[28,'CEMERLANG'],[29,null],[30,null],[31,'KEPUJIAN'],[32,null],[33,null],[34,null],[35,'LULUS'],[36,null],[37,'GAGAL']];
+  KROWS.forEach(([r,grp])=>{
+    const g=T(h2,'AC'+r); if(!g) return;
+    kelompok.push({group:grp,grade:g,tov:N(h2,'AD'+r)||0,tovTotal:N(h2,'AE'+r),
+      etr:N(h2,'AH'+r)||0,etrTotal:N(h2,'AI'+r),diff:N(h2,'AL'+r)||0,
+      murid5PGP:N(h2,'AN'+r)||0,bau:N(h2,'AP'+r)||0});
+  });
+
+  return {id:'s'+Date.now(),profile,demographics,history,targets,students,kelompok,source:fname};
+}
+
+/* ============================================================
+   PAGE 11 — GLOSSARY
+   ============================================================ */
+function renderGlossary(){
+  const terms = [
+    ['GPMP','Gred Purata Mata Pelajaran — the subject grade average. Each grade carries points (A+ = 0, A = 1 … G = 9) and GPMP is the mean of those points. A lower GPMP is a stronger cohort, which is why every GPMP axis in this dashboard is reversed so upward still means better.'],
+    ['TOV','Take-Off Value — the baseline mark a student carries into the year, normally from the previous year\u2019s final assessment. Everything else is measured as movement away from this.'],
+    ['ETR','Expected Target Result — the grade and mark the panel commits to achieving for each student in the actual SPM. It is a promise, not a prediction.'],
+    ['OTI 1 / 2 / 3','Operational Target Increment — three interim checkpoints spaced between TOV and ETR. Each one is the mark a student should have reached by that point in the year to still be on course.'],
+    ['UP 1','Ujian Penggal 1 — the first term test. Measured against OTI 1.'],
+    ['PPT','Peperiksaan Pertengahan Tahun — the mid-year examination. Measured against OTI 2.'],
+    ['PPC','Peperiksaan Percubaan — the trial examination, the last full rehearsal before SPM. Measured against OTI 3.'],
+    ['BT','Beyond Target — the student\u2019s mark is above the OTI checkpoint.'],
+    ['OnT','On Track — the mark is within 8 marks below the OTI checkpoint.'],
+    ['OfT','Off Track — the mark is 9 to 19 marks below the OTI checkpoint.'],
+    ['FfT','Far from Track — the mark is 20 or more marks below the OTI checkpoint.'],
+    ['Kelompok','The grade bands used for planning: Cemerlang (A+, A, A−), Kepujian (B+, B, C+, C), Lulus (D, E) and Gagal (G).'],
+    ['5P / GP','Students targeted for the pass-conversion push — those sitting at or near the pass boundary.'],
+    ['BAU','Business as usual — the panel\u2019s standing programme, as opposed to a special intervention.'],
+    ['CAL','Calon — the number of candidates sitting the paper.'],
+    ['Lulus / Gagal','Pass and fail. A pass is grade E or better; grade G is a fail.']
+  ];
+  const bands = CUTS.slice().reverse();
+  $('#p-glossary').innerHTML = `<div class="page-head"><div class="eyebrow">11 &middot; Reference</div><h1>Glossary</h1>
+    <p class="lede">The vocabulary this dashboard uses, kept in the Malay terms the headcount system actually runs on.</p></div>
+    ${card('Terms','Every abbreviation that appears anywhere in the dashboard.',
+      `<dl class="dl glossary">${terms.map(([t,d])=>`<dt>${esc(t)}</dt><dd>${d}</dd>`).join('')}</dl>`)}
+    ${card('Grade scale and points','The mark bands used to convert a mark into a grade, and the points each grade contributes to GPMP.',
+      `<div class="tbl-scroll"><table><thead><tr><th>Grade</th><th>Mark range</th><th>GPMP points</th><th>Kelompok</th><th>Result</th></tr></thead><tbody>
+        ${GRADES.map(g=>{
+          const i=CUTS.findIndex(c=>c[1]===g); const lo=CUTS[i][0]; const hi=i===0?100:CUTS[i-1][0]-1;
+          return `<tr><td>${gchip(g)}</td><td class="num" style="text-align:left">${lo}–${hi}</td><td class="num">${GP[g]}</td>
+            <td style="text-align:left">${esc(titleCase(kelompokOf(g)))}</td>
+            <td style="text-align:left;color:${g==='G'?'var(--bad)':'var(--good)'};font-weight:600">${g==='G'?'Gagal':'Lulus'}</td></tr>`;
+        }).join('')}</tbody></table></div>`,
+      `A worked example: a cohort of 10 students holding two A grades, three C grades and five G grades scores (2×1 + 3×6 + 5×9) ÷ 10 = 6.50 GPMP. Moving one of those G students to an E changes it to 6.40 — one grade point spread across ten students.`,'flush')}
+    ${card('How track status is decided','The rule applied to every checkpoint, taken directly from the source workbook.',
+      `<div class="tbl-scroll"><table><thead><tr><th>Status</th><th>Mark minus OTI target</th><th>What it means</th></tr></thead><tbody>
+        <tr><td>${schip('BT')}</td><td class="num" style="text-align:left">above 0</td><td style="text-align:left">${TDESC.BT}</td></tr>
+        <tr><td>${schip('OnT')}</td><td class="num" style="text-align:left">−8 to 0</td><td style="text-align:left">${TDESC.OnT}</td></tr>
+        <tr><td>${schip('OfT')}</td><td class="num" style="text-align:left">−19 to −9</td><td style="text-align:left">${TDESC.OfT}</td></tr>
+        <tr><td>${schip('FfT')}</td><td class="num" style="text-align:left">−20 or worse</td><td style="text-align:left">${TDESC.FfT}</td></tr>
+      </tbody></table></div>`,
+      `Status compares a student against <b>their own</b> target, not against the class. A strong student can be Off Track while a weak student is Beyond Target — that is the point of the measure, and it is why a status list and a grade list name different students.`,'flush')}`;
+}
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+const CRED = {u:'SIC+ English', p:'PPD@Lipis'};
+const RENDER = {overview:renderOverview,targets:renderTargets,grades:renderGrades,track:renderTrack,
+  students:renderStudents,kelompok:renderKelompok,history:renderHistory,demog:renderDemog,
+  compare:renderCompare,data:renderData,glossary:renderGlossary};
+let PAGE = 'overview';
+
+$('#gateForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const u=$('#u').value.trim(), p=$('#p').value;
+  if(u===CRED.u && p===CRED.p){
+    $('#gate').style.display='none';
+    $('#app').style.display='block';
+    $('#userTag').textContent = CRED.u;
+    boot();
+  } else {
+    const err=$('#gateErr');
+    err.textContent = 'That username and password combination is not recognised. Check for a trailing space and try again.';
+    err.style.display='block';
+    $('#p').value=''; $('#p').focus();
+  }
+});
+
+function boot(){
+  const sel=$('#schoolSel');
+  sel.innerHTML = DB.schools.map((S,i)=>`<option value="${i}">${esc(titleCase(S.profile.school||'Untitled school'))}</option>`).join('');
+  sel.value = CUR;
+  sel.onchange = ()=>{ CUR=+sel.value; refresh(); };
+  $('#nav').addEventListener('click', e=>{
+    const a=e.target.closest('a[data-page]'); if(!a) return;
+    e.preventDefault(); go(a.dataset.page);
+    $('#side').classList.remove('open'); $('#scrim').classList.remove('on');
+  });
+  $('#menuBtn').onclick = ()=>{ $('#side').classList.toggle('open'); $('#scrim').classList.toggle('on'); };
+  $('#scrim').onclick = ()=>{ $('#side').classList.remove('open'); $('#scrim').classList.remove('on'); };
+  $('#logout').onclick = ()=>{ location.reload(); };
+  $('#modalX').onclick = closeModal;
+  $('#modal').onclick = e=>{ if(e.target.id==='modal') closeModal(); };
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+  refresh();
+}
+function closeModal(){ $('#modal').classList.remove('on'); if(CHARTS.cStudent){CHARTS.cStudent.destroy();delete CHARTS.cStudent;} }
+function go(page){
+  PAGE = page;
+  $$('#nav a').forEach(a=>a.classList.toggle('on', a.dataset.page===page));
+  $$('.page').forEach(s=>s.classList.toggle('on', s.dataset.page===page));
+  window.scrollTo({top:0,behavior:'instant'});
+  try{ RENDER[page](); }
+  catch(err){ document.getElementById('p-'+page).innerHTML =
+    `<div class="warnbox"><b>This page could not be built from the current data</b>${esc(err.message)}<br>
+     Check the data quality panel on page 10, or reload the source workbook.</div>`; console.error(err); }
+}
+function refresh(){
+  const S = school();
+  $('#ctxMeta').textContent = [S.profile.principal?('Pengetua: '+titleCase(S.profile.principal)):'',
+    S.profile.headOfPanel?('Ketua Panitia: '+titleCase(S.profile.headOfPanel)):''].filter(Boolean).join('  ·  ');
+  $('#pillSubject').textContent = S.profile.subject || '—';
+  $('#pillCohort').textContent = `${S.students.length} students · SPM ${S.profile.year||''}`;
+  $('#schoolSel').innerHTML = DB.schools.map((x,i)=>`<option value="${i}">${esc(titleCase(x.profile.school||'Untitled school'))}</option>`).join('');
+  $('#schoolSel').value = CUR;
+  killCharts();
+  go(PAGE);
+}
+</script>
+</body>
+</html>
